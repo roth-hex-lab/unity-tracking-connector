@@ -1,0 +1,14 @@
+{
+    "name": "HEXLab.Hextrackingconnector.Editor.Tests",
+    "references": [
+        "HEXLab.Hextrackingconnector.Editor",
+        "HEXLab.Hextrackingconnector"
+    ],
+    "optionalUnityReferences": [
+        "TestAssemblies"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}

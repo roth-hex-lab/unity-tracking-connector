@@ -1,0 +1,75 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!1 &2139087204862548697
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1738439905938166066}
+  - component: {fileID: 2378944114114727802}
+  - component: {fileID: 6270968290373794044}
+  m_Layer: 0
+  m_Name: Visuals
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!4 &1738439905938166066
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139087204862548697}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2378944114114727802
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139087204862548697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5225c1973482c934180d4fd6ce1460bf, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
+  commServer: {fileID: 0}
+  calibration: {fileID: 6270968290373794044}
+  parent: {fileID: 1738439905938166066}
+  jointPrefab: {fileID: 4198472772038802745, guid: 9ef7a175d3b716149bc5415395fda98d, type: 3}
+  linePrefab: {fileID: 6873139827369952066, guid: f950279c8cf429f4b8423fdad2aa23e9, type: 3}
+  headPrefab: {fileID: 6070663460479496251, guid: e47315f2f795acc45b576553a8b90aaa, type: 3}
+  enableHead: 1
+  bodyScale: 1
+  jointScale: 0.12
+  headScale: 0.28
+  connectionScale: 0.04
+--- !u!114 &6270968290373794044
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139087204862548697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
+  body: {fileID: 2378944114114727802}
+  autoCalibrate: 1
+  calibrationMode: 2
+  calibrationOffset: {x: 0, y: 0, z: 0}
+  groundHeight: 0

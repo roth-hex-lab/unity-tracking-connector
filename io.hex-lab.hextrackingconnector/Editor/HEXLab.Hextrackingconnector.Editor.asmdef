@@ -1,0 +1,10 @@
+{
+    "name": "HEXLab.Hextrackingconnector.Editor",
+    "references": [
+      "HEXLab.Hextrackingconnector"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": []
+}
