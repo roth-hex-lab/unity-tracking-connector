@@ -42,7 +42,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 4293908773506375481}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2a4028fca0c349b9b6bc48f9f6321a0b, type: 3}
+  m_Script: {fileID: 11500000, guid: 5225c1973482c934180d4fd6ce1460bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
   commServer: {fileID: 0}
@@ -52,6 +52,7 @@ MonoBehaviour:
   linePrefab: {fileID: 6873139827369952066, guid: f950279c8cf429f4b8423fdad2aa23e9, type: 3}
   headPrefab: {fileID: 6070663460479496251, guid: e47315f2f795acc45b576553a8b90aaa, type: 3}
   enableHead: 1
+  jointColor: {r: 0.34, g: 0.34, b: 0.34, a: 1}
   bodyScale: 1
   jointScale: 0.2
   headScale: 0.3

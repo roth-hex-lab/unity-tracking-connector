@@ -33,6 +33,7 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private GameObject linePrefab;
         [SerializeField] private GameObject headPrefab;
         [SerializeField] private bool enableHead = true;
+        [SerializeField] private Color jointColor = new Color(0.34f, 0.34f, 0.34f, 1f);
 
         [Header("Scale")]
         [SerializeField, Min(0.001f)] private float bodyScale = 1f;
@@ -189,10 +190,13 @@ namespace HEXLab.Hextrackingconnector
             }
 
             var targetParent = parent == null ? transform : parent;
+            var generatedJointMaterial = BodyDebugMaterials.GetOrCreateJointMaterial(jointColor);
 
             for (int i = 0; i < jointInstances.Length; i++)
             {
                 jointInstances[i] = Instantiate(jointPrefab, targetParent);
+                ApplyJointMaterial(jointInstances[i], generatedJointMaterial);
+
                 jointInstances[i].transform.localScale = Vector3.one * jointScale;
                 jointInstances[i].name = ((SkeletonJoint)i).ToString();
                 jointInstances[i].SetActive(false);
@@ -212,6 +216,8 @@ namespace HEXLab.Hextrackingconnector
             if (enableHead && headPrefab != null)
             {
                 headInstance = Instantiate(headPrefab, targetParent);
+                ApplyJointMaterial(headInstance, generatedJointMaterial);
+
                 headInstance.transform.localPosition = headPrefab.transform.localPosition;
                 headInstance.transform.localRotation = headPrefab.transform.localRotation;
                 headInstance.transform.localScale = Vector3.one * headScale;
@@ -219,6 +225,26 @@ namespace HEXLab.Hextrackingconnector
             }
 
             visualsCreated = true;
+        }
+
+        private static void ApplyJointMaterial(GameObject jointInstance, Material material)
+        {
+            if (jointInstance == null || material == null)
+            {
+                return;
+            }
+
+            // Keep child renderers free to use their own prefab materials.
+            var renderers = jointInstance.GetComponents<Renderer>();
+            foreach (var renderer in renderers)
+            {
+                if (renderer is LineRenderer)
+                {
+                    continue;
+                }
+
+                renderer.sharedMaterial = material;
+            }
         }
 
         private void DestroyVisuals()

@@ -49,6 +49,39 @@ namespace HEXLab.Hextrackingconnector.Tests
         }
 
         [Test]
+        public void BodyDebugVisUsesColorSettingForGeneratedJointMaterial()
+        {
+            var fields = typeof(BodyDebugVis)
+                .GetFields(BindingFlags.Instance | BindingFlags.NonPublic)
+                .Select(field => field.Name)
+                .ToArray();
+
+            CollectionAssert.Contains(fields, "jointColor");
+            CollectionAssert.DoesNotContain(fields, "jointMaterial");
+            CollectionAssert.DoesNotContain(fields, "jointMaterialOverride");
+        }
+
+        [Test]
+        public void BodyDebugMaterialsSelectsPipelineSpecificLitShaders()
+        {
+            var materials = typeof(BodyDebugVis).Assembly.GetType("HEXLab.Hextrackingconnector.BodyDebugMaterials");
+            Assert.IsNotNull(materials);
+
+            var method = materials.GetMethod(
+                "GetCandidateShaderNames",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            Assert.IsNotNull(method);
+
+            var builtIn = (string[])method.Invoke(null, new object[] { null });
+            var urp = (string[])method.Invoke(null, new object[] { "UnityEngine.Rendering.Universal.UniversalRenderPipelineAsset" });
+            var hdrp = (string[])method.Invoke(null, new object[] { "UnityEngine.Rendering.HighDefinition.HDRenderPipelineAsset" });
+
+            Assert.AreEqual("Standard", builtIn[0]);
+            Assert.AreEqual("Universal Render Pipeline/Simple Lit", urp[0]);
+            Assert.AreEqual("HDRP/Lit", hdrp[0]);
+        }
+
+        [Test]
         public void SkeletonFrameStoresAndRetrievesTrackedJoints()
         {
             var positions = new Vector3[SkeletonFrame.JointCount];
