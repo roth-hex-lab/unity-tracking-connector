@@ -7,7 +7,7 @@ namespace HEXLab.Hextrackingconnector
     public class BodyDebugVis : MonoBehaviour
     {
         [Header("Source")]
-        [SerializeField, FormerlySerializedAs("commServer")] private MonoBehaviour skeletonProvider;
+        [SerializeField, FormerlySerializedAs("commServer"), SkeletonProvider] private MonoBehaviour skeletonProvider;
         [SerializeField] private bool applyCalibration = true;
         [SerializeField] private BodyCalibration calibration;
 
@@ -85,14 +85,6 @@ namespace HEXLab.Hextrackingconnector
             ApplyPose();
         }
 
-        private void OnValidate()
-        {
-            if (skeletonProvider != null && !(skeletonProvider is ISkeletonProvider))
-            {
-                skeletonProvider = null;
-            }
-        }
-
         private void ResolveSkeletonProvider()
         {
             if (skeletonProvider == null)
@@ -105,7 +97,16 @@ namespace HEXLab.Hextrackingconnector
                 calibration = GetComponent<BodyCalibration>();
             }
 
-            activeSkeletonProvider = skeletonProvider as ISkeletonProvider;
+            activeSkeletonProvider = null;
+            if (skeletonProvider != null)
+            {
+                SkeletonProviderUtility.TryResolveProvider(
+                    skeletonProvider,
+                    this,
+                    "Skeleton Provider",
+                    allowSelf: true,
+                    out activeSkeletonProvider);
+            }
         }
 
         private void Subscribe()

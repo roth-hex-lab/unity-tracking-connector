@@ -160,6 +160,54 @@ namespace HEXLab.Hextrackingconnector.Tests
         }
 
         [Test]
+        public void SkeletonProviderFieldsAdvertiseInspectorValidation()
+        {
+            var attributeType = typeof(SkeletonFrame).Assembly.GetType(
+                "HEXLab.Hextrackingconnector.SkeletonProviderAttribute");
+
+            Assert.IsNotNull(attributeType);
+            AssertProviderFieldHasAttribute(typeof(BodyDebugVis), "skeletonProvider", attributeType, expectedAllowSelf: true);
+            AssertProviderFieldHasAttribute(typeof(BodyCalibration), "skeletonProvider", attributeType, expectedAllowSelf: false);
+            AssertProviderFieldHasAttribute(typeof(SkeletonConverter), "sourceProvider", attributeType, expectedAllowSelf: false);
+            AssertProviderFieldHasAttribute(typeof(DirectHumanoidBoneDriver), "skeletonProvider", attributeType, expectedAllowSelf: true);
+        }
+
+        [Test]
+        public void SkeletonProviderUtilityExplainsInvalidAssignments()
+        {
+            var utilityType = typeof(SkeletonFrame).Assembly.GetType(
+                "HEXLab.Hextrackingconnector.SkeletonProviderUtility");
+            Assert.IsNotNull(utilityType);
+
+            var method = utilityType.GetMethod(
+                "GetValidationMessage",
+                BindingFlags.Static | BindingFlags.Public,
+                null,
+                new[] { typeof(MonoBehaviour), typeof(MonoBehaviour), typeof(bool) },
+                null);
+            Assert.IsNotNull(method);
+
+            var gameObject = new GameObject("ProviderValidationTest");
+            try
+            {
+                var owner = gameObject.AddComponent<BodyCalibration>();
+                var invalidProvider = gameObject.AddComponent<BodyDebugVis>();
+
+                var invalidMessage = (string)method.Invoke(null, new object[] { invalidProvider, owner, true });
+                Assert.IsNotNull(invalidMessage);
+                StringAssert.Contains(nameof(ISkeletonProvider), invalidMessage);
+
+                var selfMessage = (string)method.Invoke(null, new object[] { owner, owner, false });
+                Assert.IsNotNull(selfMessage);
+                StringAssert.Contains("itself", selfMessage);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
         public void SkeletonDefinitionProvidesHeadPose()
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
@@ -881,6 +929,24 @@ namespace HEXLab.Hextrackingconnector.Tests
         private static void SetHumanPose(SkeletonJointPose[] poses, SkeletonJoint joint, Vector3 position)
         {
             poses[(int)joint] = SkeletonJointPose.FromPosition(position, 1f, SkeletonDataProvenance.Direct, joint.ToString());
+        }
+
+        private static void AssertProviderFieldHasAttribute(
+            Type componentType,
+            string fieldName,
+            Type attributeType,
+            bool expectedAllowSelf)
+        {
+            var field = componentType.GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+            Assert.IsNotNull(field);
+            Assert.AreEqual(typeof(MonoBehaviour), field.FieldType);
+
+            var attribute = field.GetCustomAttributes(attributeType, inherit: false).SingleOrDefault();
+            Assert.IsNotNull(attribute);
+
+            var allowSelfProperty = attributeType.GetProperty("AllowSelf", BindingFlags.Instance | BindingFlags.Public);
+            Assert.IsNotNull(allowSelfProperty);
+            Assert.AreEqual(expectedAllowSelf, (bool)allowSelfProperty.GetValue(attribute));
         }
 
         private static void SetPrivateField<T>(object target, string fieldName, T value)

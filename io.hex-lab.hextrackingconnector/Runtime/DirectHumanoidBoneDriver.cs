@@ -8,7 +8,7 @@ namespace HEXLab.Hextrackingconnector
     public class DirectHumanoidBoneDriver : MonoBehaviour
     {
         [Header("Source")]
-        [SerializeField] private MonoBehaviour skeletonProvider;
+        [SerializeField, SkeletonProvider] private MonoBehaviour skeletonProvider;
         [SerializeField] private bool retargetSourcePose = true;
         [SerializeField] private bool logUnsupportedPoses = true;
 
@@ -57,11 +57,6 @@ namespace HEXLab.Hextrackingconnector
 
         private void OnValidate()
         {
-            if (skeletonProvider != null && !(skeletonProvider is ISkeletonProvider))
-            {
-                skeletonProvider = null;
-            }
-
             positionScale = Mathf.Max(0.001f, positionScale);
         }
 
@@ -90,7 +85,16 @@ namespace HEXLab.Hextrackingconnector
                 skeletonProvider = FindFirstObjectByType<CommServer>();
             }
 
-            activeSkeletonProvider = skeletonProvider as ISkeletonProvider;
+            activeSkeletonProvider = null;
+            if (skeletonProvider != null)
+            {
+                SkeletonProviderUtility.TryResolveProvider(
+                    skeletonProvider,
+                    this,
+                    "Skeleton Provider",
+                    allowSelf: true,
+                    out activeSkeletonProvider);
+            }
             initialRootLocalPosition = animator != null
                 ? animator.transform.localPosition
                 : transform.localPosition;

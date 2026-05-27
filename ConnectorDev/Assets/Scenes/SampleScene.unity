@@ -715,7 +715,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 7801181246178537890, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: transportMode
-      value: 0
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 7801181246178537890, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: coordinateSource
@@ -749,6 +749,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 1104346649488452835, guid: bb96394e9629f20408ea23d3760ba123, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 5978688025392802851, guid: bb96394e9629f20408ea23d3760ba123, type: 3}
       propertyPath: m_Name
       value: Human_BasicMotionsDummy_M

@@ -29,7 +29,7 @@ namespace HEXLab.Hextrackingconnector
         };
 
         [Header("Source")]
-        [SerializeField, FormerlySerializedAs("body")] private MonoBehaviour skeletonProvider;
+        [SerializeField, FormerlySerializedAs("body"), SkeletonProvider(allowSelf: false)] private MonoBehaviour skeletonProvider;
         [SerializeField] private bool publishCalibratedPose = true;
 
         [Header("Calibration")]
@@ -69,14 +69,6 @@ namespace HEXLab.Hextrackingconnector
         private void OnDisable()
         {
             Unsubscribe();
-        }
-
-        private void OnValidate()
-        {
-            if (skeletonProvider != null && !IsUsableProvider(skeletonProvider))
-            {
-                skeletonProvider = null;
-            }
         }
 
         public void Calibrate()
@@ -286,9 +278,15 @@ namespace HEXLab.Hextrackingconnector
 
         private void ResolveSkeletonProvider()
         {
-            activeSkeletonProvider = skeletonProvider as ISkeletonProvider;
-            if (activeSkeletonProvider != null)
+            activeSkeletonProvider = null;
+            if (skeletonProvider != null)
             {
+                SkeletonProviderUtility.TryResolveProvider(
+                    skeletonProvider,
+                    this,
+                    "Skeleton Provider",
+                    allowSelf: false,
+                    out activeSkeletonProvider);
                 return;
             }
 
@@ -439,7 +437,7 @@ namespace HEXLab.Hextrackingconnector
 
         private bool IsUsableProvider(MonoBehaviour component)
         {
-            return component is ISkeletonProvider && !ReferenceEquals(component, this);
+            return SkeletonProviderUtility.IsValidProvider(component, this, allowSelf: false);
         }
 
         private static bool TryGetHipCentre(

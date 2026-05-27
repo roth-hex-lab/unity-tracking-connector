@@ -14,7 +14,7 @@ namespace HEXLab.Hextrackingconnector
 #pragma warning disable 0649
     public class SkeletonConverter : MonoBehaviour, ISkeletonProvider
     {
-        [SerializeField] private MonoBehaviour sourceProvider;
+        [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour sourceProvider;
         [SerializeField] private OutputSkeletonSelection outputSkeleton = OutputSkeletonSelection.Source;
         [SerializeField] private bool logUnsupportedConversions = true;
 
@@ -59,17 +59,18 @@ namespace HEXLab.Hextrackingconnector
             Unsubscribe();
         }
 
-        private void OnValidate()
-        {
-            if (sourceProvider != null && !(sourceProvider is ISkeletonProvider))
-            {
-                sourceProvider = null;
-            }
-        }
-
         private void ResolveSourceProvider()
         {
-            activeSourceProvider = sourceProvider as ISkeletonProvider;
+            activeSourceProvider = null;
+            if (sourceProvider != null)
+            {
+                SkeletonProviderUtility.TryResolveProvider(
+                    sourceProvider,
+                    this,
+                    "Source Provider",
+                    allowSelf: false,
+                    out activeSourceProvider);
+            }
         }
 
         private void Subscribe()
