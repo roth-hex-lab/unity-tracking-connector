@@ -9,6 +9,7 @@ namespace HEXLab.Hextrackingconnector.Editor
         private SerializedProperty transportMode;
         private SerializedProperty pipeName;
         private SerializedProperty udpPort;
+        private SerializedProperty inputSkeleton;
         private SerializedProperty coordinateSource;
         private SerializedProperty mirrorMode;
         private SerializedProperty smoothingMode;
@@ -20,6 +21,7 @@ namespace HEXLab.Hextrackingconnector.Editor
             transportMode = serializedObject.FindProperty("transportMode");
             pipeName = serializedObject.FindProperty("pipeName");
             udpPort = serializedObject.FindProperty("udpPort");
+            inputSkeleton = serializedObject.FindProperty("inputSkeleton");
             coordinateSource = serializedObject.FindProperty("coordinateSource");
             mirrorMode = serializedObject.FindProperty("mirrorMode");
             smoothingMode = serializedObject.FindProperty("smoothingMode");
@@ -63,6 +65,9 @@ namespace HEXLab.Hextrackingconnector.Editor
         private void DrawPoseSection()
         {
             EditorGUILayout.LabelField("Pose Data", EditorStyles.boldLabel);
+            EditorGUILayout.PropertyField(
+                inputSkeleton,
+                new GUIContent("Input Skeleton", "Expected landmark layout in the incoming payload. Auto uses skeleton_id when present."));
             EditorGUILayout.PropertyField(coordinateSource, new GUIContent("Coordinate Source"));
             EditorGUILayout.PropertyField(mirrorMode, new GUIContent("Mirror Mode"));
         }

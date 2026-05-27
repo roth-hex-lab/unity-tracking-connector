@@ -205,13 +205,13 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 330585543}
   serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 1, z: -10}
+  m_LocalRotation: {x: 0, y: -1, z: 0, w: 0}
+  m_LocalPosition: {x: 0, y: 1, z: 5}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: -180, z: 0}
 --- !u!114 &330585547
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -432,17 +432,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!114 &856873761 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
-  m_PrefabInstance: {fileID: 2294380710246130077}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 5225c1973482c934180d4fd6ce1460bf, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
 --- !u!1 &858203930
 GameObject:
   m_ObjectHideFlags: 0
@@ -556,6 +545,90 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1001 &1430568559
+PrefabInstance:
+  m_ObjectHideFlags: 0
+  serializedVersion: 2
+  m_Modification:
+    serializedVersion: 3
+    m_TransformParent: {fileID: 0}
+    m_Modifications:
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalPosition.x
+      value: -1.999
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalPosition.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalPosition.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalRotation.w
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalRotation.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalRotation.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalRotation.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.x
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.y
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 1738439905938166066, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_LocalEulerAnglesHint.z
+      value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: outputSkeleton
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: sourceProvider
+      value: 
+      objectReference: {fileID: 1577609430}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: logUnsupportedConversions
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 2139087204862548697, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: m_Name
+      value: ConvertedSkeletonVisuals
+      objectReference: {fileID: 0}
+    - target: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: skeletonProvider
+      value: 
+      objectReference: {fileID: 1430568560}
+    m_RemovedComponents: []
+    m_RemovedGameObjects: []
+    m_AddedGameObjects: []
+    m_AddedComponents: []
+  m_SourcePrefab: {fileID: 100100000, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+--- !u!114 &1430568560 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+  m_PrefabInstance: {fileID: 1430568559}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fcdf5fa90c84293adfdd483a684f7e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonConverter
 --- !u!1001 &1577609429
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -617,6 +690,10 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 7801181246178537890, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+      propertyPath: coordinateSource
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7801181246178537890, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: movingAverageWindowSize
       value: 3
       objectReference: {fileID: 0}
@@ -625,6 +702,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+--- !u!114 &1577609430 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 7801181246178537890, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+  m_PrefabInstance: {fileID: 1577609429}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b535c0730b0f404e8fb13005895b422b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.CommServer
 --- !u!1001 &1592051867
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -730,15 +818,28 @@ PrefabInstance:
       propertyPath: m_LocalEulerAnglesHint.z
       value: 0
       objectReference: {fileID: 0}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: outputSkeleton
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: sourceProvider
+      value: 
+      objectReference: {fileID: 1577609430}
+    - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: logUnsupportedConversions
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 2139087204862548697, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: m_Name
-      value: Visuals
+      value: SkeletonVisuals
       objectReference: {fileID: 0}
-    - target: {fileID: 6270968290373794044, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
-      propertyPath: body
+    - target: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: skeletonProvider
       value: 
-      objectReference: {fileID: 856873761}
-    m_RemovedComponents: []
+      objectReference: {fileID: 0}
+    m_RemovedComponents:
+    - {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
@@ -753,4 +854,5 @@ SceneRoots:
   - {fileID: 858203934}
   - {fileID: 1577609429}
   - {fileID: 2294380710246130077}
+  - {fileID: 1430568559}
   - {fileID: 1592051867}

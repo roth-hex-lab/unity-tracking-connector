@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 1738439905938166066}
   - component: {fileID: 2378944114114727802}
   - component: {fileID: 6270968290373794044}
+  - component: {fileID: 2110557634481904032}
   m_Layer: 0
   m_Name: Visuals
   m_TagString: Untagged
@@ -45,7 +46,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5225c1973482c934180d4fd6ce1460bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
-  commServer: {fileID: 0}
+  skeletonProvider: {fileID: 0}
   calibration: {fileID: 6270968290373794044}
   parent: {fileID: 1738439905938166066}
   jointPrefab: {fileID: 4198472772038802745, guid: 9ef7a175d3b716149bc5415395fda98d, type: 3}
@@ -74,3 +75,18 @@ MonoBehaviour:
   calibrationMode: 2
   calibrationOffset: {x: 0, y: 0, z: 0}
   groundHeight: 0
+--- !u!114 &2110557634481904032
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2139087204862548697}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 3fcdf5fa90c84293adfdd483a684f7e0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonConverter
+  sourceProvider: {fileID: 0}
+  outputSkeleton: 0
+  logUnsupportedConversions: 1

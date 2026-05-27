@@ -6,14 +6,12 @@ namespace HEXLab.Hextrackingconnector
 {
     public readonly struct SkeletonFrame
     {
-        private static readonly Vector3[] EmptyPositions = new Vector3[JointCount];
-        private static readonly bool[] EmptyTracked = new bool[JointCount];
+        private static readonly Vector3[] EmptyPositions = new Vector3[0];
+        private static readonly bool[] EmptyTracked = new bool[0];
 
         private readonly SkeletonDefinition definition;
         private readonly Vector3[] positions;
         private readonly bool[] tracked;
-
-        public const int JointCount = HumanPoseSkeleton33.JointCount;
 
         public SkeletonFrame(
             SkeletonDefinition definition,
@@ -54,11 +52,13 @@ namespace HEXLab.Hextrackingconnector
             ReceivedTime = receivedTime;
         }
 
-        public SkeletonDefinition Definition => definition ?? HumanPoseSkeleton33.Definition;
+        public SkeletonDefinition Definition => definition ?? SkeletonDefinition.Empty;
+        public int JointCount => Definition.JointCount;
         public int SequenceNumber { get; }
         public double ReceivedTime { get; }
         public IReadOnlyList<Vector3> Positions => positions ?? EmptyPositions;
 
+        public SkeletonPoint this[SkeletonJointId joint] => GetPoint(joint);
         public SkeletonPoint this[SkeletonJoint joint] => GetPoint(joint);
 
         public SkeletonPoint Nose => this[SkeletonJoint.Nose];
@@ -97,6 +97,11 @@ namespace HEXLab.Hextrackingconnector
 
         public bool IsTracked(SkeletonJoint joint)
         {
+            return IsTracked(HumanPoseSkeleton33.ToJointId(joint));
+        }
+
+        public bool IsTracked(SkeletonJointId joint)
+        {
             return IsTracked(Definition.IndexOf(joint));
         }
 
@@ -107,7 +112,18 @@ namespace HEXLab.Hextrackingconnector
 
         public Vector3 GetJoint(SkeletonJoint joint)
         {
-            return GetJoint(Definition.IndexOf(joint));
+            return GetJoint(HumanPoseSkeleton33.ToJointId(joint));
+        }
+
+        public Vector3 GetJoint(SkeletonJointId joint)
+        {
+            var index = Definition.IndexOf(joint);
+            if (!Definition.IsValidIndex(index))
+            {
+                throw new ArgumentOutOfRangeException(nameof(joint));
+            }
+
+            return GetJoint(index);
         }
 
         public Vector3 GetJoint(int index)
@@ -122,16 +138,26 @@ namespace HEXLab.Hextrackingconnector
 
         public SkeletonPoint GetPoint(SkeletonJoint joint)
         {
+            return GetPoint(HumanPoseSkeleton33.ToJointId(joint));
+        }
+
+        public SkeletonPoint GetPoint(SkeletonJointId joint)
+        {
             var index = Definition.IndexOf(joint);
             if (!Definition.IsValidIndex(index))
             {
-                throw new ArgumentOutOfRangeException(nameof(joint));
+                return new SkeletonPoint(default, false);
             }
 
             return new SkeletonPoint(GetJoint(index), IsTracked(index));
         }
 
         public bool TryGetJoint(SkeletonJoint joint, out Vector3 position)
+        {
+            return TryGetJoint(HumanPoseSkeleton33.ToJointId(joint), out position);
+        }
+
+        public bool TryGetJoint(SkeletonJointId joint, out Vector3 position)
         {
             return TryGetJoint(Definition.IndexOf(joint), out position);
         }
@@ -146,6 +172,16 @@ namespace HEXLab.Hextrackingconnector
 
             position = GetJoint(index);
             return true;
+        }
+
+        public bool TryConvertTo(SkeletonDefinition targetDefinition, out SkeletonFrame convertedFrame)
+        {
+            return SkeletonFrameConversions.TryConvert(this, targetDefinition, out convertedFrame);
+        }
+
+        public bool TryGetHeadPose(out SkeletonHeadPose headPose)
+        {
+            return Definition.TryGetHeadPose(Positions, tracked ?? EmptyTracked, out headPose);
         }
 
         public Vector3[] CopyPositions()

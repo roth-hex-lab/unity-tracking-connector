@@ -12,14 +12,14 @@ namespace HEXLab.Hextrackingconnector
 #pragma warning disable 0649
     public class BodyCalibration : MonoBehaviour
     {
-        private static readonly SkeletonJoint[] FootJoints =
+        private static readonly SkeletonJointId[] FootJoints =
         {
-            SkeletonJoint.LeftAnkle,
-            SkeletonJoint.RightAnkle,
-            SkeletonJoint.LeftHeel,
-            SkeletonJoint.RightHeel,
-            SkeletonJoint.LeftFootIndex,
-            SkeletonJoint.RightFootIndex,
+            HumanPoseSkeleton33.LeftAnkle,
+            HumanPoseSkeleton33.RightAnkle,
+            HumanPoseSkeleton33.LeftHeel,
+            HumanPoseSkeleton33.RightHeel,
+            HumanPoseSkeleton33.LeftFootIndex,
+            HumanPoseSkeleton33.RightFootIndex,
         };
 
         [SerializeField] private BodyDebugVis body;
@@ -29,6 +29,7 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private float groundHeight = 0f;
 
         private bool hasCalibration;
+        private SkeletonDefinition lastDefinition;
         private Vector3[] lastPositions;
         private bool[] lastTracked;
         private bool hasPose;
@@ -69,7 +70,13 @@ namespace HEXLab.Hextrackingconnector
 
         public bool Calibrate(Vector3[] positions, bool[] tracked)
         {
-            if (!TryCalculateOffset(positions, tracked, calibrationMode, groundHeight, out var offset))
+            return Calibrate(HumanPoseSkeleton33.Definition, positions, tracked);
+        }
+
+        public bool Calibrate(SkeletonDefinition definition, Vector3[] positions, bool[] tracked)
+        {
+            definition = definition ?? HumanPoseSkeleton33.Definition;
+            if (!TryCalculateOffset(definition, positions, tracked, calibrationMode, groundHeight, out var offset))
             {
                 return false;
             }
@@ -81,19 +88,29 @@ namespace HEXLab.Hextrackingconnector
 
         public void Apply(Vector3[] sourcePositions, bool[] sourceTracked, Vector3[] destinationPositions)
         {
-            if (!HasValidPoseArrays(sourcePositions, sourceTracked, destinationPositions))
+            Apply(HumanPoseSkeleton33.Definition, sourcePositions, sourceTracked, destinationPositions);
+        }
+
+        public void Apply(
+            SkeletonDefinition definition,
+            Vector3[] sourcePositions,
+            bool[] sourceTracked,
+            Vector3[] destinationPositions)
+        {
+            definition = definition ?? HumanPoseSkeleton33.Definition;
+            if (!HasValidPoseArrays(definition, sourcePositions, sourceTracked, destinationPositions))
             {
                 return;
             }
 
-            CachePose(sourcePositions, sourceTracked);
+            CachePose(definition, sourcePositions, sourceTracked);
 
             if (autoCalibrate && !hasCalibration)
             {
-                Calibrate(sourcePositions, sourceTracked);
+                Calibrate(definition, sourcePositions, sourceTracked);
             }
 
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            for (int i = 0; i < definition.JointCount; i++)
             {
                 destinationPositions[i] = sourceTracked[i]
                     ? sourcePositions[i] + calibrationOffset
@@ -107,7 +124,17 @@ namespace HEXLab.Hextrackingconnector
             BodyCalibrationMode mode,
             float groundHeight)
         {
-            return TryCalculateOffset(positions, tracked, mode, groundHeight, out var offset)
+            return CalculateOffset(HumanPoseSkeleton33.Definition, positions, tracked, mode, groundHeight);
+        }
+
+        public static Vector3 CalculateOffset(
+            SkeletonDefinition definition,
+            Vector3[] positions,
+            bool[] tracked,
+            BodyCalibrationMode mode,
+            float groundHeight)
+        {
+            return TryCalculateOffset(definition, positions, tracked, mode, groundHeight, out var offset)
                 ? offset
                 : Vector3.zero;
         }
@@ -119,7 +146,25 @@ namespace HEXLab.Hextrackingconnector
             float groundHeight,
             out Vector3 offset)
         {
+            return TryCalculateOffset(
+                HumanPoseSkeleton33.Definition,
+                positions,
+                tracked,
+                mode,
+                groundHeight,
+                out offset);
+        }
+
+        public static bool TryCalculateOffset(
+            SkeletonDefinition definition,
+            Vector3[] positions,
+            bool[] tracked,
+            BodyCalibrationMode mode,
+            float groundHeight,
+            out Vector3 offset)
+        {
             offset = Vector3.zero;
+            definition = definition ?? HumanPoseSkeleton33.Definition;
 
             if (mode == BodyCalibrationMode.None)
             {
@@ -128,9 +173,9 @@ namespace HEXLab.Hextrackingconnector
 
             if (positions == null ||
                 tracked == null ||
-                positions.Length < SkeletonFrame.JointCount ||
-                tracked.Length < SkeletonFrame.JointCount ||
-                !TryGetHipCentre(positions, tracked, out var hipCentre))
+                positions.Length < definition.JointCount ||
+                tracked.Length < definition.JointCount ||
+                !TryGetHipCentre(definition, positions, tracked, out var hipCentre))
             {
                 return false;
             }
@@ -139,7 +184,7 @@ namespace HEXLab.Hextrackingconnector
 
             if (mode == BodyCalibrationMode.CenterHipsGroundFeet)
             {
-                if (!TryGetLowestFootY(positions, tracked, out var lowestFootY))
+                if (!TryGetLowestFootY(definition, positions, tracked, out var lowestFootY))
                 {
                     offset = Vector3.zero;
                     return false;
@@ -161,35 +206,37 @@ namespace HEXLab.Hextrackingconnector
 
         private bool CalibrateLastPose()
         {
-            return hasPose && Calibrate(lastPositions, lastTracked);
+            return hasPose && Calibrate(lastDefinition, lastPositions, lastTracked);
         }
 
-        private void CachePose(Vector3[] positions, bool[] tracked)
+        private void CachePose(SkeletonDefinition definition, Vector3[] positions, bool[] tracked)
         {
-            EnsurePoseCache();
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            EnsurePoseCache(definition);
+            for (int i = 0; i < definition.JointCount; i++)
             {
                 lastPositions[i] = positions[i];
                 lastTracked[i] = tracked[i];
             }
 
+            lastDefinition = definition;
             hasPose = true;
         }
 
-        private void EnsurePoseCache()
+        private void EnsurePoseCache(SkeletonDefinition definition)
         {
-            if (lastPositions == null || lastPositions.Length != SkeletonFrame.JointCount)
+            if (lastPositions == null || lastPositions.Length != definition.JointCount)
             {
-                lastPositions = new Vector3[SkeletonFrame.JointCount];
+                lastPositions = new Vector3[definition.JointCount];
             }
 
-            if (lastTracked == null || lastTracked.Length != SkeletonFrame.JointCount)
+            if (lastTracked == null || lastTracked.Length != definition.JointCount)
             {
-                lastTracked = new bool[SkeletonFrame.JointCount];
+                lastTracked = new bool[definition.JointCount];
             }
         }
 
         private static bool HasValidPoseArrays(
+            SkeletonDefinition definition,
             Vector3[] sourcePositions,
             bool[] sourceTracked,
             Vector3[] destinationPositions)
@@ -197,31 +244,44 @@ namespace HEXLab.Hextrackingconnector
             return sourcePositions != null &&
                    sourceTracked != null &&
                    destinationPositions != null &&
-                   sourcePositions.Length >= SkeletonFrame.JointCount &&
-                   sourceTracked.Length >= SkeletonFrame.JointCount &&
-                   destinationPositions.Length >= SkeletonFrame.JointCount;
+                   sourcePositions.Length >= definition.JointCount &&
+                   sourceTracked.Length >= definition.JointCount &&
+                   destinationPositions.Length >= definition.JointCount;
         }
 
-        private static bool TryGetHipCentre(Vector3[] positions, bool[] tracked, out Vector3 hipCentre)
+        private static bool TryGetHipCentre(
+            SkeletonDefinition definition,
+            Vector3[] positions,
+            bool[] tracked,
+            out Vector3 hipCentre)
         {
-            if (!tracked[(int)SkeletonJoint.LeftHip] || !tracked[(int)SkeletonJoint.RightHip])
+            var leftHip = definition.IndexOf(HumanPoseSkeleton33.LeftHip);
+            var rightHip = definition.IndexOf(HumanPoseSkeleton33.RightHip);
+            if (!definition.IsValidIndex(leftHip) ||
+                !definition.IsValidIndex(rightHip) ||
+                !tracked[leftHip] ||
+                !tracked[rightHip])
             {
                 hipCentre = default;
                 return false;
             }
 
-            hipCentre = (positions[(int)SkeletonJoint.LeftHip] + positions[(int)SkeletonJoint.RightHip]) / 2f;
+            hipCentre = (positions[leftHip] + positions[rightHip]) / 2f;
             return true;
         }
 
-        private static bool TryGetLowestFootY(Vector3[] positions, bool[] tracked, out float lowestFootY)
+        private static bool TryGetLowestFootY(
+            SkeletonDefinition definition,
+            Vector3[] positions,
+            bool[] tracked,
+            out float lowestFootY)
         {
             lowestFootY = float.PositiveInfinity;
 
             foreach (var joint in FootJoints)
             {
-                var index = (int)joint;
-                if (!tracked[index])
+                var index = definition.IndexOf(joint);
+                if (!definition.IsValidIndex(index) || !tracked[index])
                 {
                     continue;
                 }

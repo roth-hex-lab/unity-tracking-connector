@@ -17,16 +17,15 @@ namespace HEXLab.Hextrackingconnector
         Udp,
     }
 
-    public class CommServer : MonoBehaviour
+    public class CommServer : MonoBehaviour, ISkeletonProvider
     {
-        public const int JOINT_COUNT = SkeletonFrame.JointCount;
-
         private const int MaxPayloadBytes = 1024 * 1024;
         private const string DefaultPipeName = "UnityMediaPipeBody";
 
         [SerializeField] private TransportMode transportMode = TransportMode.Pipe;
         [SerializeField] private string pipeName = DefaultPipeName;
         [SerializeField, Min(1)] private int udpPort = 5000;
+        [SerializeField] private InputSkeletonSelection inputSkeleton = InputSkeletonSelection.Auto;
         [SerializeField] private PoseCoordinateSource coordinateSource = PoseCoordinateSource.Free;
         [SerializeField] private PoseMirrorMode mirrorMode = PoseMirrorMode.None;
         [SerializeField] private PoseSmoothingMode smoothingMode = PoseSmoothingMode.None;
@@ -51,6 +50,12 @@ namespace HEXLab.Hextrackingconnector
         public event Action<SkeletonFrame> PoseReceived;
 
         public TransportMode CurrentTransportMode => transportMode;
+
+        public InputSkeletonSelection InputSkeleton
+        {
+            get => inputSkeleton;
+            set => inputSkeleton = value;
+        }
 
         public PoseCoordinateSource CoordinateSource
         {
@@ -390,19 +395,31 @@ namespace HEXLab.Hextrackingconnector
                 return false;
             }
 
-            var positions = new Vector3[SkeletonFrame.JointCount];
-            var tracked = new bool[SkeletonFrame.JointCount];
+            if (!InputSkeletonRegistry.TryGetMapper(inputSkeleton, frame.skeleton_id, out var mapper))
+            {
+                Debug.LogWarning($"Unsupported input skeleton id '{frame.skeleton_id}'. Skipping frame.");
+                return false;
+            }
+
+            var definition = mapper.Definition;
+            var positions = new Vector3[definition.JointCount];
+            var tracked = new bool[definition.JointCount];
             var foundAny = false;
 
             foreach (var landmarkData in landmarks)
             {
                 if (landmarkData == null ||
-                    !MediaPipePoseLandmarkDefinition.TryMapIndex(landmarkData.index, mirrorMode, out var joint))
+                    !mapper.TryMapIndex(landmarkData.index, mirrorMode, out var joint))
                 {
                     continue;
                 }
 
-                var mappedIndex = (int)joint;
+                var mappedIndex = definition.IndexOf(joint);
+                if (!definition.IsValidIndex(mappedIndex))
+                {
+                    continue;
+                }
+
                 positions[mappedIndex] = landmarkData.ToVector3();
                 tracked[mappedIndex] = true;
                 foundAny = true;
@@ -414,7 +431,7 @@ namespace HEXLab.Hextrackingconnector
             }
 
             skeletonFrame = new SkeletonFrame(
-                HumanPoseSkeleton33.Definition,
+                definition,
                 positions,
                 tracked,
                 Interlocked.Increment(ref sequenceNumber),

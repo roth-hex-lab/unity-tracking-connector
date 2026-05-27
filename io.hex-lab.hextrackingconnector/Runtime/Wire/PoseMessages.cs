@@ -1,9 +1,10 @@
-﻿// Mirrors the Python messages.py data structures.
+// Wire DTOs that mirror the Python messages.py data structures.
 // PoseFrame is the top-level JSON object received from Python.
 // Field names must exactly match the JSON keys produced by Python's PoseFrame.to_json().
 //
 // Expected JSON shape:
 // {
+//   "skeleton_id": "mediapipe.pose.33",
 //   "free":     [{"index": 0, "x": 0.1, "y": 0.2, "z": 0.3}, ...],
 //   "anchored": [{"index": 0, "x": 0.1, "y": 0.2, "z": 0.3}, ...]
 // }
@@ -28,6 +29,9 @@ namespace HEXLab.Hextrackingconnector
     [Serializable]
     internal class PoseFrame
     {
+        // Optional. Older Python senders omit it and are treated as MediaPipe Pose 33 in Auto mode.
+        public string skeleton_id;
+
         // FREE: real-world coordinates computed via PnP on the Python side
         public WireLandmarkData[] free;
 

@@ -31,6 +31,7 @@ namespace HEXLab.Hextrackingconnector
     public sealed class MovingAveragePoseSmoother : IPoseSmoother
     {
         private readonly Queue<SkeletonFrame> frames = new Queue<SkeletonFrame>();
+        private string activeDefinitionId;
 
         public MovingAveragePoseSmoother(int windowSize)
         {
@@ -41,6 +42,13 @@ namespace HEXLab.Hextrackingconnector
 
         public SkeletonFrame Smooth(SkeletonFrame frame)
         {
+            if (activeDefinitionId != null &&
+                !string.Equals(activeDefinitionId, frame.Definition.Id, StringComparison.Ordinal))
+            {
+                frames.Clear();
+            }
+
+            activeDefinitionId = frame.Definition.Id;
             frames.Enqueue(frame);
 
             while (frames.Count > WindowSize)
@@ -48,13 +56,19 @@ namespace HEXLab.Hextrackingconnector
                 frames.Dequeue();
             }
 
-            var positions = new Vector3[SkeletonFrame.JointCount];
-            var tracked = new bool[SkeletonFrame.JointCount];
-            var counts = new int[SkeletonFrame.JointCount];
+            var jointCount = frame.Definition.JointCount;
+            var positions = new Vector3[jointCount];
+            var tracked = new bool[jointCount];
+            var counts = new int[jointCount];
 
             foreach (var sample in frames)
             {
-                for (int i = 0; i < SkeletonFrame.JointCount; i++)
+                if (!string.Equals(sample.Definition.Id, frame.Definition.Id, StringComparison.Ordinal))
+                {
+                    continue;
+                }
+
+                for (int i = 0; i < jointCount; i++)
                 {
                     if (!sample.TryGetJoint(i, out var position))
                     {
@@ -66,7 +80,7 @@ namespace HEXLab.Hextrackingconnector
                 }
             }
 
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            for (int i = 0; i < jointCount; i++)
             {
                 if (counts[i] == 0)
                 {
@@ -88,6 +102,7 @@ namespace HEXLab.Hextrackingconnector
         public void Reset()
         {
             frames.Clear();
+            activeDefinitionId = null;
         }
     }
 

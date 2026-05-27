@@ -6,25 +6,8 @@ namespace HEXLab.Hextrackingconnector
 #pragma warning disable 0649
     public class BodyDebugVis : MonoBehaviour
     {
-        private const int LineCount = 11;
-
-        private static readonly SkeletonJoint[][] LineStrips =
-        {
-            new[] { SkeletonJoint.RightFootIndex, SkeletonJoint.RightHeel, SkeletonJoint.RightAnkle, SkeletonJoint.RightFootIndex },
-            new[] { SkeletonJoint.LeftFootIndex, SkeletonJoint.LeftHeel, SkeletonJoint.LeftAnkle, SkeletonJoint.LeftFootIndex },
-            new[] { SkeletonJoint.RightAnkle, SkeletonJoint.RightKnee, SkeletonJoint.RightHip },
-            new[] { SkeletonJoint.LeftAnkle, SkeletonJoint.LeftKnee, SkeletonJoint.LeftHip },
-            new[] { SkeletonJoint.RightHip, SkeletonJoint.LeftHip, SkeletonJoint.LeftShoulder, SkeletonJoint.RightShoulder, SkeletonJoint.RightHip },
-            new[] { SkeletonJoint.RightShoulder, SkeletonJoint.RightElbow, SkeletonJoint.RightWrist, SkeletonJoint.RightThumb },
-            new[] { SkeletonJoint.LeftShoulder, SkeletonJoint.LeftElbow, SkeletonJoint.LeftWrist, SkeletonJoint.LeftThumb },
-            new[] { SkeletonJoint.RightWrist, SkeletonJoint.RightPinky, SkeletonJoint.RightIndex, SkeletonJoint.RightWrist },
-            new[] { SkeletonJoint.LeftWrist, SkeletonJoint.LeftPinky, SkeletonJoint.LeftIndex, SkeletonJoint.LeftWrist },
-            new[] { SkeletonJoint.MouthRight, SkeletonJoint.MouthLeft },
-            new[] { SkeletonJoint.RightEar, SkeletonJoint.RightEye, SkeletonJoint.Nose, SkeletonJoint.LeftEye, SkeletonJoint.LeftEar },
-        };
-
         [Header("Source")]
-        [SerializeField] private CommServer commServer;
+        [SerializeField, FormerlySerializedAs("commServer")] private MonoBehaviour skeletonProvider;
         [SerializeField] private BodyCalibration calibration;
 
         [Header("Prefabs")]
@@ -41,12 +24,14 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField, Min(0.001f)] private float headScale = 0.28f;
         [SerializeField, Min(0.001f)] private float connectionScale = 0.04f;
 
-        private readonly Vector3[] currentPositions = new Vector3[SkeletonFrame.JointCount];
-        private readonly Vector3[] displayPositions = new Vector3[SkeletonFrame.JointCount];
-        private readonly bool[] tracked = new bool[SkeletonFrame.JointCount];
-        private readonly GameObject[] jointInstances = new GameObject[SkeletonFrame.JointCount];
-        private readonly LineRenderer[] lines = new LineRenderer[LineCount];
+        private SkeletonDefinition currentDefinition = SkeletonDefinition.Empty;
+        private Vector3[] currentPositions = new Vector3[0];
+        private Vector3[] displayPositions = new Vector3[0];
+        private bool[] tracked = new bool[0];
+        private GameObject[] jointInstances = new GameObject[0];
+        private LineRenderer[] lines = new LineRenderer[0];
 
+        private ISkeletonProvider activeSkeletonProvider;
         private GameObject headInstance;
         private bool visualsCreated;
 
@@ -55,9 +40,9 @@ namespace HEXLab.Hextrackingconnector
 
         private void OnEnable()
         {
-            ResolveCommServer();
+            ResolveSkeletonProvider();
             Subscribe();
-            EnsureVisuals();
+            EnsureVisuals(HumanPoseSkeleton33.Definition);
         }
 
         private void OnDisable()
@@ -82,45 +67,58 @@ namespace HEXLab.Hextrackingconnector
             ApplyPose();
         }
 
-        private void ResolveCommServer()
+        private void OnValidate()
         {
-            if (commServer == null)
+            if (skeletonProvider != null && !(skeletonProvider is ISkeletonProvider))
             {
-                commServer = FindFirstObjectByType<CommServer>();
+                skeletonProvider = null;
+            }
+        }
+
+        private void ResolveSkeletonProvider()
+        {
+            if (skeletonProvider == null)
+            {
+                skeletonProvider = FindFirstObjectByType<CommServer>();
             }
 
             if (calibration == null)
             {
                 calibration = GetComponent<BodyCalibration>();
             }
+
+            activeSkeletonProvider = skeletonProvider as ISkeletonProvider;
         }
 
         private void Subscribe()
         {
-            if (commServer != null)
+            if (activeSkeletonProvider != null)
             {
-                commServer.PoseReceived += OnPoseReceived;
+                activeSkeletonProvider.PoseReceived += OnPoseReceived;
             }
         }
 
         private void Unsubscribe()
         {
-            if (commServer != null)
+            if (activeSkeletonProvider != null)
             {
-                commServer.PoseReceived -= OnPoseReceived;
+                activeSkeletonProvider.PoseReceived -= OnPoseReceived;
             }
+
+            activeSkeletonProvider = null;
         }
 
         private void OnPoseReceived(SkeletonFrame frame)
         {
-            EnsureVisuals();
+            EnsureVisuals(frame.Definition);
 
             if (!visualsCreated)
             {
                 return;
             }
 
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            EnsurePoseBuffers(frame.Definition);
+            for (int i = 0; i < frame.Definition.JointCount; i++)
             {
                 if (frame.TryGetJoint(i, out var position))
                 {
@@ -141,11 +139,11 @@ namespace HEXLab.Hextrackingconnector
         {
             if (calibration != null)
             {
-                calibration.Apply(currentPositions, tracked, displayPositions);
+                calibration.Apply(currentDefinition, currentPositions, tracked, displayPositions);
                 return;
             }
 
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            for (int i = 0; i < currentDefinition.JointCount; i++)
             {
                 displayPositions[i] = tracked[i] ? currentPositions[i] : Vector3.zero;
             }
@@ -153,7 +151,7 @@ namespace HEXLab.Hextrackingconnector
 
         private void ApplyPose()
         {
-            for (int i = 0; i < SkeletonFrame.JointCount; i++)
+            for (int i = 0; i < jointInstances.Length; i++)
             {
                 if (jointInstances[i] == null)
                 {
@@ -173,41 +171,59 @@ namespace HEXLab.Hextrackingconnector
 
         private bool ShouldHideFacialJoint(int index)
         {
-            return enableHead && headInstance != null && index <= (int)SkeletonJoint.MouthRight;
+            return enableHead &&
+                   headInstance != null &&
+                   currentDefinition.IsValidIndex(index) &&
+                   IsFacialJoint(currentDefinition.JointAt(index));
         }
 
-        private void EnsureVisuals()
+        private void EnsureVisuals(SkeletonDefinition definition)
         {
-            if (visualsCreated)
+            definition = definition ?? HumanPoseSkeleton33.Definition;
+            if (visualsCreated && string.Equals(currentDefinition.Id, definition.Id, System.StringComparison.Ordinal))
             {
                 return;
             }
+
+            DestroyVisuals();
 
             if (jointPrefab == null || linePrefab == null)
             {
                 Debug.LogWarning("BodyDebugVis needs joint and line prefabs.", this);
+                currentDefinition = definition;
+                EnsurePoseBuffers(definition);
                 return;
             }
+
+            currentDefinition = definition;
+            EnsurePoseBuffers(definition);
 
             var targetParent = parent == null ? transform : parent;
             var generatedJointMaterial = BodyDebugMaterials.GetOrCreateJointMaterial(jointColor);
 
+            jointInstances = new GameObject[definition.JointCount];
             for (int i = 0; i < jointInstances.Length; i++)
             {
                 jointInstances[i] = Instantiate(jointPrefab, targetParent);
                 ApplyJointMaterial(jointInstances[i], generatedJointMaterial);
 
                 jointInstances[i].transform.localScale = Vector3.one * jointScale;
-                jointInstances[i].name = ((SkeletonJoint)i).ToString();
+                jointInstances[i].name = definition.JointAt(i).ToString();
                 jointInstances[i].SetActive(false);
             }
 
+            lines = new LineRenderer[definition.DebugLineStrips.Count];
             for (int i = 0; i < lines.Length; i++)
             {
                 var lineObject = Instantiate(linePrefab, targetParent);
+                lineObject.transform.localPosition = Vector3.zero;
+                lineObject.transform.localRotation = Quaternion.identity;
+                lineObject.transform.localScale = Vector3.one;
+
                 lines[i] = lineObject.GetComponent<LineRenderer>();
                 if (lines[i] != null)
                 {
+                    lines[i].useWorldSpace = false;
                     lines[i].positionCount = 0;
                     lines[i].widthMultiplier = connectionScale;
                 }
@@ -225,6 +241,25 @@ namespace HEXLab.Hextrackingconnector
             }
 
             visualsCreated = true;
+        }
+
+        private void EnsurePoseBuffers(SkeletonDefinition definition)
+        {
+            var jointCount = definition.JointCount;
+            if (currentPositions.Length != jointCount)
+            {
+                currentPositions = new Vector3[jointCount];
+            }
+
+            if (displayPositions.Length != jointCount)
+            {
+                displayPositions = new Vector3[jointCount];
+            }
+
+            if (tracked.Length != jointCount)
+            {
+                tracked = new bool[jointCount];
+            }
         }
 
         private static void ApplyJointMaterial(GameObject jointInstance, Material material)
@@ -252,7 +287,6 @@ namespace HEXLab.Hextrackingconnector
             for (int i = 0; i < jointInstances.Length; i++)
             {
                 DestroyIfPresent(jointInstances[i]);
-                jointInstances[i] = null;
             }
 
             for (int i = 0; i < lines.Length; i++)
@@ -260,12 +294,13 @@ namespace HEXLab.Hextrackingconnector
                 if (lines[i] != null)
                 {
                     DestroyIfPresent(lines[i].gameObject);
-                    lines[i] = null;
                 }
             }
 
             DestroyIfPresent(headInstance);
             headInstance = null;
+            jointInstances = new GameObject[0];
+            lines = new LineRenderer[0];
             visualsCreated = false;
         }
 
@@ -288,40 +323,42 @@ namespace HEXLab.Hextrackingconnector
 
         private void UpdateLines()
         {
-            for (int i = 0; i < LineStrips.Length; i++)
+            for (int i = 0; i < lines.Length; i++)
             {
                 if (lines[i] == null)
                 {
                     continue;
                 }
 
-                if (headInstance != null && i >= 9)
+                var strip = currentDefinition.DebugLineStrips[i];
+                if (headInstance != null && IsFacialLineStrip(strip))
                 {
                     lines[i].positionCount = 0;
                     continue;
                 }
 
-                var strip = LineStrips[i];
                 if (!HasTrackedJoints(strip))
                 {
                     lines[i].positionCount = 0;
                     continue;
                 }
 
-                lines[i].positionCount = strip.Length;
+                lines[i].positionCount = strip.Count;
                 lines[i].widthMultiplier = connectionScale;
-                for (int pointIndex = 0; pointIndex < strip.Length; pointIndex++)
+                lines[i].useWorldSpace = false;
+                for (int pointIndex = 0; pointIndex < strip.Count; pointIndex++)
                 {
-                    lines[i].SetPosition(pointIndex, Position(strip[pointIndex]));
+                    lines[i].SetPosition(pointIndex, LocalPosition(strip[pointIndex]));
                 }
             }
         }
 
-        private bool HasTrackedJoints(SkeletonJoint[] joints)
+        private bool HasTrackedJoints(SkeletonLineStrip strip)
         {
-            foreach (var joint in joints)
+            foreach (var joint in strip.Joints)
             {
-                if (!tracked[(int)joint])
+                var index = currentDefinition.IndexOf(joint);
+                if (!currentDefinition.IsValidIndex(index) || !tracked[index])
                 {
                     return false;
                 }
@@ -337,50 +374,53 @@ namespace HEXLab.Hextrackingconnector
                 return;
             }
 
-            if (!TryGetPosition(SkeletonJoint.RightEar, out var rightEar) ||
-                !TryGetPosition(SkeletonJoint.LeftEar, out var leftEar) ||
-                !TryGetPosition(SkeletonJoint.Nose, out var nose) ||
-                !TryGetPosition(SkeletonJoint.RightEyeInner, out var rightEyeInner) ||
-                !TryGetPosition(SkeletonJoint.LeftEyeInner, out var leftEyeInner))
+            if (!currentDefinition.TryGetHeadPose(displayPositions, tracked, out var headPose))
             {
                 headInstance.SetActive(false);
                 return;
             }
 
-            VirtualHeadPosition = (rightEar + leftEar) / 2f;
+            VirtualHeadPosition = headPose.Position;
             headInstance.SetActive(true);
-            headInstance.transform.position = VirtualHeadPosition;
+            headInstance.transform.localPosition = VirtualHeadPosition;
             headInstance.transform.localScale = Vector3.one * headScale;
-
-            var up = Vector3.Scale(
-                new Vector3(.1f, 1f, .1f),
-                BodyMath.GetNormal(nose, rightEar, leftEar)).normalized;
-            var forward = Vector3.Scale(
-                new Vector3(1f, .1f, 1f),
-                BodyMath.GetNormal(nose, rightEyeInner, leftEyeInner)).normalized;
-
-            if (up.sqrMagnitude > 0.0001f && forward.sqrMagnitude > 0.0001f)
-            {
-                headInstance.transform.rotation = Quaternion.LookRotation(-forward, up);
-            }
+            headInstance.transform.localRotation = Quaternion.LookRotation(-headPose.Forward, headPose.Up);
         }
 
-        private bool TryGetPosition(SkeletonJoint joint, out Vector3 position)
+        private Vector3 LocalPosition(SkeletonJointId joint)
         {
-            var index = (int)joint;
-            if (!tracked[index] || jointInstances[index] == null)
+            var index = currentDefinition.IndexOf(joint);
+            return currentDefinition.IsValidIndex(index)
+                ? displayPositions[index]
+                : Vector3.zero;
+        }
+
+        private static bool IsFacialLineStrip(SkeletonLineStrip strip)
+        {
+            foreach (var joint in strip.Joints)
             {
-                position = default;
-                return false;
+                if (!IsFacialJoint(joint))
+                {
+                    return false;
+                }
             }
 
-            position = jointInstances[index].transform.position;
             return true;
         }
 
-        private Vector3 Position(SkeletonJoint joint)
+        private static bool IsFacialJoint(SkeletonJointId joint)
         {
-            return jointInstances[(int)joint].transform.position;
+            return joint == HumanPoseSkeleton33.Nose ||
+                   joint == HumanPoseSkeleton33.LeftEyeInner ||
+                   joint == HumanPoseSkeleton33.LeftEye ||
+                   joint == HumanPoseSkeleton33.LeftEyeOuter ||
+                   joint == HumanPoseSkeleton33.RightEyeInner ||
+                   joint == HumanPoseSkeleton33.RightEye ||
+                   joint == HumanPoseSkeleton33.RightEyeOuter ||
+                   joint == HumanPoseSkeleton33.LeftEar ||
+                   joint == HumanPoseSkeleton33.RightEar ||
+                   joint == HumanPoseSkeleton33.MouthLeft ||
+                   joint == HumanPoseSkeleton33.MouthRight;
         }
     }
 #pragma warning restore 0649

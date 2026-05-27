@@ -1,17 +1,5 @@
 namespace HEXLab.Hextrackingconnector
 {
-    public enum PoseCoordinateSource
-    {
-        Free,
-        Anchored,
-    }
-
-    public enum PoseMirrorMode
-    {
-        None,
-        SwapLeftRight,
-    }
-
     internal enum MediaPipePoseLandmark
     {
         NOSE = 0,
@@ -49,14 +37,16 @@ namespace HEXLab.Hextrackingconnector
         RIGHT_FOOT_INDEX = 32,
     }
 
-    internal static class MediaPipePoseLandmarkDefinition
+    internal sealed class MediaPipePose33WireMapper : IWireSkeletonMapper
     {
         public const int LandmarkCount = HumanPoseSkeleton33.JointCount;
 
-        public static bool TryMapIndex(
+        public SkeletonDefinition Definition => HumanPoseSkeleton33.Definition;
+
+        public bool TryMapIndex(
             int sourceIndex,
             PoseMirrorMode mirrorMode,
-            out SkeletonJoint joint)
+            out SkeletonJointId joint)
         {
             if (!IsValidIndex(sourceIndex))
             {
@@ -69,17 +59,17 @@ namespace HEXLab.Hextrackingconnector
             return true;
         }
 
-        private static bool IsValidIndex(int index)
+        private bool IsValidIndex(int index)
         {
             return index >= 0 && index < LandmarkCount;
         }
 
-        private static SkeletonJoint ToSkeletonJoint(MediaPipePoseLandmark landmark)
+        private SkeletonJointId ToSkeletonJoint(MediaPipePoseLandmark landmark)
         {
-            return (SkeletonJoint)(int)landmark;
+            return HumanPoseSkeleton33.ToJointId((SkeletonJoint)(int)landmark);
         }
 
-        private static MediaPipePoseLandmark Map(
+        private MediaPipePoseLandmark Map(
             MediaPipePoseLandmark landmark,
             PoseMirrorMode mirrorMode)
         {
