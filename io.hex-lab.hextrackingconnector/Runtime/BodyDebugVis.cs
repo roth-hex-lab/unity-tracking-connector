@@ -8,6 +8,7 @@ namespace HEXLab.Hextrackingconnector
     {
         [Header("Source")]
         [SerializeField, FormerlySerializedAs("commServer")] private MonoBehaviour skeletonProvider;
+        [SerializeField] private bool applyCalibration = true;
         [SerializeField] private BodyCalibration calibration;
 
         [Header("Prefabs")]
@@ -37,16 +38,29 @@ namespace HEXLab.Hextrackingconnector
 
         public Vector3 CalibrationOffset => calibration == null ? Vector3.zero : calibration.CalibrationOffset;
         public Vector3 VirtualHeadPosition { get; private set; }
+        public bool UsesLocalOneShotCalibration
+        {
+            get
+            {
+                var candidate = calibration == null ? GetComponent<BodyCalibration>() : calibration;
+                return applyCalibration &&
+                       candidate != null &&
+                       candidate.gameObject == gameObject &&
+                       !ReferenceEquals(skeletonProvider, candidate);
+            }
+        }
 
         private void OnEnable()
         {
             ResolveSkeletonProvider();
             Subscribe();
+            SubscribeCalibration();
             EnsureVisuals(HumanPoseSkeleton33.Definition);
         }
 
         private void OnDisable()
         {
+            UnsubscribeCalibration();
             Unsubscribe();
         }
 
@@ -57,7 +71,11 @@ namespace HEXLab.Hextrackingconnector
 
         public void ResetCalibration()
         {
-            calibration?.ResetCalibration();
+            if (applyCalibration)
+            {
+                calibration?.ResetCalibration();
+            }
+
             ApplyPose();
         }
 
@@ -82,7 +100,7 @@ namespace HEXLab.Hextrackingconnector
                 skeletonProvider = FindFirstObjectByType<CommServer>();
             }
 
-            if (calibration == null)
+            if (applyCalibration && calibration == null)
             {
                 calibration = GetComponent<BodyCalibration>();
             }
@@ -106,6 +124,30 @@ namespace HEXLab.Hextrackingconnector
             }
 
             activeSkeletonProvider = null;
+        }
+
+        private void SubscribeCalibration()
+        {
+            if (calibration != null)
+            {
+                calibration.CalibrationChanged += OnCalibrationChanged;
+            }
+        }
+
+        private void UnsubscribeCalibration()
+        {
+            if (calibration != null)
+            {
+                calibration.CalibrationChanged -= OnCalibrationChanged;
+            }
+        }
+
+        private void OnCalibrationChanged()
+        {
+            if (ShouldApplyOneShotCalibration)
+            {
+                ApplyCurrentPose();
+            }
         }
 
         private void OnPoseReceived(SkeletonFrame frame)
@@ -137,7 +179,7 @@ namespace HEXLab.Hextrackingconnector
 
         private void ApplyCalibration()
         {
-            if (calibration != null)
+            if (ShouldApplyOneShotCalibration)
             {
                 calibration.Apply(currentDefinition, currentPositions, tracked, displayPositions);
                 return;
@@ -148,6 +190,11 @@ namespace HEXLab.Hextrackingconnector
                 displayPositions[i] = tracked[i] ? currentPositions[i] : Vector3.zero;
             }
         }
+
+        private bool ShouldApplyOneShotCalibration =>
+            applyCalibration &&
+            calibration != null &&
+            !ReferenceEquals(activeSkeletonProvider, calibration);
 
         private void ApplyPose()
         {

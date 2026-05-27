@@ -45,7 +45,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 5225c1973482c934180d4fd6ce1460bf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
-  commServer: {fileID: 0}
+  skeletonProvider: {fileID: 0}
+  applyCalibration: 1
   calibration: {fileID: 4719205656552789901}
   parent: {fileID: 0}
   jointPrefab: {fileID: 4198472772038802745, guid: 9ef7a175d3b716149bc5415395fda98d, type: 3}
@@ -69,7 +70,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
-  body: {fileID: 8372266225387134459}
+  skeletonProvider: {fileID: 0}
+  publishCalibratedPose: 1
   autoCalibrate: 1
   calibrationMode: 1
   calibrationOffset: {x: 0, y: 0, z: 0}

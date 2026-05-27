@@ -402,8 +402,7 @@ namespace HEXLab.Hextrackingconnector
             }
 
             var definition = mapper.Definition;
-            var positions = new Vector3[definition.JointCount];
-            var tracked = new bool[definition.JointCount];
+            var jointPoses = new SkeletonJointPose[definition.JointCount];
             var foundAny = false;
 
             foreach (var landmarkData in landmarks)
@@ -420,8 +419,7 @@ namespace HEXLab.Hextrackingconnector
                     continue;
                 }
 
-                positions[mappedIndex] = landmarkData.ToVector3();
-                tracked[mappedIndex] = true;
+                jointPoses[mappedIndex] = landmarkData.ToJointPose();
                 foundAny = true;
             }
 
@@ -430,12 +428,18 @@ namespace HEXLab.Hextrackingconnector
                 return false;
             }
 
-            skeletonFrame = new SkeletonFrame(
-                definition,
-                positions,
-                tracked,
+            var coordinateSpace = coordinateSource == PoseCoordinateSource.Anchored
+                ? SkeletonCoordinateSpace.RootRelative
+                : SkeletonCoordinateSpace.World;
+            var pose = new SkeletonPose(definition, jointPoses, coordinateSpace);
+            var metadata = new SkeletonFrameMetadata(
                 Interlocked.Increment(ref sequenceNumber),
-                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0);
+                DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0,
+                sourceId: frame.skeleton_id);
+
+            skeletonFrame = new SkeletonFrame(
+                pose,
+                metadata);
             return true;
         }
 

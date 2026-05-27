@@ -26,6 +26,11 @@ namespace HEXLab.Hextrackingconnector
                 return CocoPoseSkeleton17.TryCreateFrom(source, out convertedFrame);
             }
 
+            if (targetDefinition == UnityHumanoidControlSkeleton.Definition)
+            {
+                return UnityHumanoidPoseRetargeter.TryCreateFrom(source, out convertedFrame);
+            }
+
             convertedFrame = default;
             return false;
         }

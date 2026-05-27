@@ -80,26 +80,22 @@ namespace HEXLab.Hextrackingconnector
                 return false;
             }
 
-            var positions = new Vector3[Definition.JointCount];
-            var tracked = new bool[Definition.JointCount];
+            var poses = new SkeletonJointPose[Definition.JointCount];
 
             for (int i = 0; i < JointList.Length; i++)
             {
-                if (!source.TryGetJoint(JointList[i], out var position))
+                if (!source.TryGetJointPose(JointList[i], out var pose))
                 {
+                    poses[i] = SkeletonJointPose.Unavailable;
                     continue;
                 }
 
-                positions[i] = position;
-                tracked[i] = true;
+                poses[i] = pose;
             }
 
             frame = new SkeletonFrame(
-                Definition,
-                positions,
-                tracked,
-                source.SequenceNumber,
-                source.ReceivedTime);
+                new SkeletonPose(Definition, poses, source.CoordinateSpace),
+                source.Metadata);
             return true;
         }
     }

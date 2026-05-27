@@ -27,7 +27,9 @@ namespace HEXLab.Hextrackingconnector.Editor
 
             if (!Application.isPlaying)
             {
-                EditorGUILayout.HelpBox("Enter Play Mode to calibrate against the current incoming pose.", MessageType.Info);
+                EditorGUILayout.HelpBox(
+                    "Enter Play Mode to calibrate against the current source-provider pose. Consumers are calibrated automatically when they subscribe to this BodyCalibration component as their ISkeletonProvider.",
+                    MessageType.Info);
             }
         }
     }

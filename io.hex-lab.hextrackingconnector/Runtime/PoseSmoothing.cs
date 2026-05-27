@@ -58,8 +58,9 @@ namespace HEXLab.Hextrackingconnector
 
             var jointCount = frame.Definition.JointCount;
             var positions = new Vector3[jointCount];
-            var tracked = new bool[jointCount];
+            var confidenceTotals = new float[jointCount];
             var counts = new int[jointCount];
+            var latestJointPoses = frame.CopyJointPoses();
 
             foreach (var sample in frames)
             {
@@ -76,27 +77,53 @@ namespace HEXLab.Hextrackingconnector
                     }
 
                     positions[i] += position;
+                    if (sample.TryGetJointPose(i, out var jointPose) && jointPose.HasConfidence)
+                    {
+                        confidenceTotals[i] += jointPose.Confidence;
+                    }
+                    else
+                    {
+                        confidenceTotals[i] += 1f;
+                    }
+
                     counts[i]++;
                 }
             }
 
+            var poses = new SkeletonJointPose[jointCount];
             for (int i = 0; i < jointCount; i++)
             {
+                var latestPose = latestJointPoses[i];
                 if (counts[i] == 0)
                 {
+                    poses[i] = latestPose.HasRotation
+                        ? latestPose
+                        : SkeletonJointPose.Unavailable;
                     continue;
                 }
 
                 positions[i] /= counts[i];
-                tracked[i] = true;
+                var confidence = confidenceTotals[i] / counts[i];
+                var channels = SkeletonJointChannels.Position | SkeletonJointChannels.Confidence;
+                if (latestPose.HasRotation)
+                {
+                    channels |= SkeletonJointChannels.Rotation;
+                }
+
+                poses[i] = new SkeletonJointPose(
+                    channels,
+                    positions[i],
+                    latestPose.HasRotation ? latestPose.Rotation : Quaternion.identity,
+                    confidence,
+                    latestPose.Provenance == SkeletonDataProvenance.Unknown
+                        ? SkeletonDataProvenance.Direct
+                        : latestPose.Provenance,
+                    latestPose.Source);
             }
 
             return new SkeletonFrame(
-                frame.Definition,
-                positions,
-                tracked,
-                frame.SequenceNumber,
-                frame.ReceivedTime);
+                new SkeletonPose(frame.Definition, poses, frame.CoordinateSpace),
+                frame.Metadata);
         }
 
         public void Reset()

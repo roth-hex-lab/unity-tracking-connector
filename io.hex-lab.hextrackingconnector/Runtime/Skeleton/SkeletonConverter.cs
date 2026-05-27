@@ -8,6 +8,7 @@ namespace HEXLab.Hextrackingconnector
         Source,
         HumanPoseSkeleton33,
         CocoPose17,
+        UnityHumanoidControl,
     }
 
 #pragma warning disable 0649
@@ -137,6 +138,8 @@ namespace HEXLab.Hextrackingconnector
                     return HumanPoseSkeleton33.Definition;
                 case OutputSkeletonSelection.CocoPose17:
                     return CocoPoseSkeleton17.Definition;
+                case OutputSkeletonSelection.UnityHumanoidControl:
+                    return UnityHumanoidControlSkeleton.Definition;
                 case OutputSkeletonSelection.Source:
                 default:
                     return null;

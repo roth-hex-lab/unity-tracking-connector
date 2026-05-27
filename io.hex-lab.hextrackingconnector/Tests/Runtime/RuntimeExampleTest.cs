@@ -270,6 +270,111 @@ namespace HEXLab.Hextrackingconnector.Tests
         }
 
         [Test]
+        public void SkeletonPoseStoresJointChannelsWithoutFrameTiming()
+        {
+            var joint = new SkeletonJointId("TrackedBone");
+            var definition = new SkeletonDefinition(
+                "test.rich-pose",
+                "Rich Test Pose",
+                new[] { joint });
+            var rotation = Quaternion.Euler(10f, 20f, 30f);
+            var pose = new SkeletonPose(
+                definition,
+                new[]
+                {
+                    SkeletonJointPose.FromPositionAndRotation(
+                        new Vector3(1f, 2f, 3f),
+                        rotation,
+                        0.75f,
+                        SkeletonDataProvenance.Inferred,
+                        "left-shoulder/right-shoulder midpoint"),
+                },
+                SkeletonCoordinateSpace.RootRelative);
+
+            Assert.AreSame(definition, pose.Definition);
+            Assert.AreEqual(SkeletonCoordinateSpace.RootRelative, pose.CoordinateSpace);
+            Assert.IsTrue(pose.TryGetJointPose(joint, out var jointPose));
+            Assert.IsTrue(jointPose.HasPosition);
+            Assert.IsTrue(jointPose.HasRotation);
+            Assert.IsTrue(jointPose.HasConfidence);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), jointPose.Position);
+            Assert.AreEqual(rotation, jointPose.Rotation);
+            Assert.AreEqual(0.75f, jointPose.Confidence);
+            Assert.AreEqual(SkeletonDataProvenance.Inferred, jointPose.Provenance);
+            Assert.AreEqual("left-shoulder/right-shoulder midpoint", jointPose.Source);
+        }
+
+        [Test]
+        public void SkeletonFrameWrapsPoseWithMetadata()
+        {
+            var joint = new SkeletonJointId("RotationOnly");
+            var definition = new SkeletonDefinition(
+                "test.frame-metadata",
+                "Frame Metadata Test",
+                new[] { joint });
+            var rotation = Quaternion.Euler(0f, 45f, 0f);
+            var pose = new SkeletonPose(
+                definition,
+                new[]
+                {
+                    SkeletonJointPose.FromRotation(
+                        rotation,
+                        0.5f,
+                        SkeletonDataProvenance.Direct),
+                });
+            var metadata = new SkeletonFrameMetadata(
+                sequenceNumber: 42,
+                receivedTime: 12.5,
+                sourceTimestamp: 11.5,
+                sourceId: "unit-test");
+            var frame = new SkeletonFrame(pose, metadata);
+
+            Assert.AreSame(definition, frame.Pose.Definition);
+            Assert.AreEqual(42, frame.SequenceNumber);
+            Assert.AreEqual(12.5, frame.ReceivedTime);
+            Assert.AreEqual(11.5, frame.Metadata.SourceTimestamp);
+            Assert.AreEqual("unit-test", frame.Metadata.SourceId);
+            Assert.IsTrue(frame.TryGetRotation(joint, out var retrievedRotation));
+            Assert.AreEqual(rotation, retrievedRotation);
+            Assert.IsFalse(frame.TryGetJoint(joint, out _));
+        }
+
+        [Test]
+        public void UnityHumanoidControlSkeletonExposesHumanBodyBoneMapping()
+        {
+            Assert.AreEqual("unity.humanoid.control", UnityHumanoidControlSkeleton.Definition.Id);
+            Assert.IsTrue(UnityHumanoidControlSkeleton.Definition.Contains(UnityHumanoidControlSkeleton.Hips));
+            Assert.IsTrue(UnityHumanoidControlSkeleton.Definition.Contains(UnityHumanoidControlSkeleton.LeftUpperArm));
+            Assert.IsTrue(UnityHumanoidControlSkeleton.TryGetHumanBodyBone(
+                UnityHumanoidControlSkeleton.LeftUpperArm,
+                out var bone));
+            Assert.AreEqual(HumanBodyBones.LeftUpperArm, bone);
+        }
+
+        [Test]
+        public void HumanoidRetargeterCreatesBestEffortControlPoseFromHumanPose33()
+        {
+            var source = CreateStandingHumanPoseFrame();
+
+            Assert.IsTrue(UnityHumanoidPoseRetargeter.TryCreateFrom(source, out var humanoid));
+            Assert.AreSame(UnityHumanoidControlSkeleton.Definition, humanoid.Definition);
+            Assert.AreEqual(source.SequenceNumber, humanoid.SequenceNumber);
+            Assert.AreEqual(source.ReceivedTime, humanoid.ReceivedTime);
+            Assert.IsTrue(humanoid.TryGetJoint(UnityHumanoidControlSkeleton.Hips, out var hips));
+            Assert.AreEqual(Vector3.zero, hips);
+            Assert.IsTrue(humanoid.TryGetRotation(UnityHumanoidControlSkeleton.Hips, out var hipsRotation));
+            Assert.Greater(Vector3.Dot(hipsRotation * Vector3.up, Vector3.up), 0.99f);
+            Assert.IsTrue(humanoid.TryGetRotation(UnityHumanoidControlSkeleton.LeftUpperArm, out var upperArmRotation));
+            Assert.Greater(Vector3.Dot((upperArmRotation * Vector3.up).normalized, Vector3.left), 0.99f);
+            Assert.AreEqual(
+                SkeletonDataProvenance.Inferred,
+                humanoid.GetPoint(UnityHumanoidControlSkeleton.LeftUpperArm).Provenance);
+            Assert.AreEqual(
+                "LeftShoulder->LeftElbow",
+                humanoid.GetPoint(UnityHumanoidControlSkeleton.LeftUpperArm).Source);
+        }
+
+        [Test]
         public void CocoPoseSkeleton17CanBeCreatedFromHumanPoseSkeleton33()
         {
             var type = typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.CocoPoseSkeleton17");
@@ -460,7 +565,80 @@ namespace HEXLab.Hextrackingconnector.Tests
         public void BodyCalibrationIsAComponentWithCalibrateCommand()
         {
             Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(typeof(BodyCalibration)));
+            Assert.IsTrue(typeof(ISkeletonProvider).IsAssignableFrom(typeof(BodyCalibration)));
             Assert.IsNotNull(typeof(BodyCalibration).GetMethod(nameof(BodyCalibration.Calibrate), System.Type.EmptyTypes));
+        }
+
+        [Test]
+        public void BodyCalibrationPublishesCalibratedFramesFromSourceProvider()
+        {
+            var gameObject = new GameObject("BodyCalibrationProviderTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var calibration = gameObject.AddComponent<BodyCalibration>();
+            SetPrivateField(calibration, "skeletonProvider", source);
+            SetPrivateField(calibration, "autoCalibrate", true);
+            SetPrivateField(calibration, "calibrationMode", BodyCalibrationMode.CenterHips);
+
+            var received = default(SkeletonFrame);
+            var receivedPose = false;
+            ((ISkeletonProvider)calibration).PoseReceived += frame =>
+            {
+                received = frame;
+                receivedPose = true;
+            };
+
+            try
+            {
+                gameObject.SetActive(true);
+                source.Publish(CreateStandingHumanPoseFrame());
+
+                Assert.IsTrue(receivedPose);
+                Assert.IsTrue(calibration.HasCalibration);
+                Assert.IsTrue(((ISkeletonProvider)calibration).TryGetLatestPose(out var latest));
+                Assert.AreEqual(received.SequenceNumber, latest.SequenceNumber);
+                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.LeftHip, out var leftHip));
+                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.RightHip, out var rightHip));
+                Assert.AreEqual(Vector3.zero, leftHip + rightHip);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void BodyCalibrationTryApplyPreservesRotationChannels()
+        {
+            var calibration = (BodyCalibration)FormatterServices.GetUninitializedObject(typeof(BodyCalibration));
+            SetPrivateField(calibration, "calibrationOffset", new Vector3(1f, 2f, 3f));
+            SetPrivateField(calibration, "hasCalibration", true);
+
+            var rotation = Quaternion.Euler(5f, 15f, 25f);
+            var source = new SkeletonFrame(
+                new SkeletonPose(
+                    UnityHumanoidControlSkeleton.Definition,
+                    CreateUnityHumanoidPoses(
+                        (UnityHumanoidControlSkeleton.Hips,
+                            SkeletonJointPose.FromPositionAndRotation(
+                                new Vector3(2f, 3f, 4f),
+                                rotation,
+                                0.8f,
+                                SkeletonDataProvenance.Direct,
+                                "unit-test"))),
+                    SkeletonCoordinateSpace.RootRelative),
+                new SkeletonFrameMetadata(12, 34.5, 33.5, "source"));
+
+            Assert.IsTrue(calibration.TryApply(source, out var calibrated));
+            Assert.IsTrue(calibrated.TryGetJointPose(UnityHumanoidControlSkeleton.Hips, out var hips));
+            Assert.AreEqual(new Vector3(3f, 5f, 7f), hips.Position);
+            Assert.IsTrue(hips.HasRotation);
+            Assert.AreEqual(rotation, hips.Rotation);
+            Assert.AreEqual(0.8f, hips.Confidence);
+            Assert.AreEqual(SkeletonDataProvenance.Direct, hips.Provenance);
+            Assert.AreEqual("unit-test", hips.Source);
+            Assert.AreEqual(12, calibrated.SequenceNumber);
+            Assert.AreEqual("source", calibrated.Metadata.SourceId);
         }
 
         [Test]
@@ -526,6 +704,113 @@ namespace HEXLab.Hextrackingconnector.Tests
             Assert.AreEqual(new Vector3(-1f, 0.75f, -3f), offset);
         }
 
+        [Test]
+        public void CalibrationCanUseUnityHumanoidHipsAndFeet()
+        {
+            var positions = new Vector3[UnityHumanoidControlSkeleton.Definition.JointCount];
+            var tracked = new bool[UnityHumanoidControlSkeleton.Definition.JointCount];
+            SetTracked(UnityHumanoidControlSkeleton.Hips, new Vector3(2f, 3f, 4f));
+            SetTracked(UnityHumanoidControlSkeleton.LeftFoot, new Vector3(1f, 0.5f, 3f));
+            SetTracked(UnityHumanoidControlSkeleton.RightToes, new Vector3(3f, -1f, 5f));
+
+            var offset = BodyCalibration.CalculateOffset(
+                UnityHumanoidControlSkeleton.Definition,
+                positions,
+                tracked,
+                BodyCalibrationMode.CenterHipsGroundFeet,
+                groundHeight: 0f);
+
+            Assert.AreEqual(new Vector3(-2f, 1f, -4f), offset);
+
+            void SetTracked(SkeletonJointId joint, Vector3 position)
+            {
+                var index = UnityHumanoidControlSkeleton.Definition.IndexOf(joint);
+                positions[index] = position;
+                tracked[index] = true;
+            }
+        }
+
+        [Test]
+        public void CalibrationFallsBackToTrackedCenterAndLowestPoint()
+        {
+            var first = new SkeletonJointId("First");
+            var second = new SkeletonJointId("Second");
+            var third = new SkeletonJointId("Third");
+            var definition = new SkeletonDefinition(
+                "test.generic-calibration",
+                "Generic Calibration",
+                new[] { first, second, third });
+            var positions = new[]
+            {
+                new Vector3(0f, 0f, 0f),
+                new Vector3(2f, 2f, 2f),
+                new Vector3(4f, -1f, 4f),
+            };
+            var tracked = new[] { true, true, true };
+
+            var offset = BodyCalibration.CalculateOffset(
+                definition,
+                positions,
+                tracked,
+                BodyCalibrationMode.CenterHipsGroundFeet,
+                groundHeight: 0f);
+
+            Assert.AreEqual(new Vector3(-2f, 1f, -2f), offset);
+        }
+
+        [Test]
+        public void HumanoidRetargeterDoesNotInventRestRotationsForCopiedJoints()
+        {
+            Assert.IsTrue(UnityHumanoidPoseRetargeter.TryCreateFrom(CreateStandingHumanPoseFrame(), out var humanoid));
+
+            Assert.IsTrue(humanoid.TryGetJoint(UnityHumanoidControlSkeleton.LeftShoulder, out _));
+            Assert.IsFalse(humanoid.TryGetRotation(UnityHumanoidControlSkeleton.LeftShoulder, out _));
+            Assert.IsTrue(humanoid.TryGetJoint(UnityHumanoidControlSkeleton.LeftHand, out _));
+            Assert.IsFalse(humanoid.TryGetRotation(UnityHumanoidControlSkeleton.LeftHand, out _));
+        }
+
+        [Test]
+        public void HumanoidRetargeterInfersHandRotationFromHandLandmarks()
+        {
+            var source = CreateStandingHumanPoseFrame();
+            var poses = source.CopyJointPoses();
+            SetHumanPose(poses, SkeletonJoint.LeftIndex, new Vector3(-1.75f, 1.95f, 0f));
+            SetHumanPose(poses, SkeletonJoint.LeftPinky, new Vector3(-2.15f, 1.85f, 0f));
+            SetHumanPose(poses, SkeletonJoint.LeftThumb, new Vector3(-1.95f, 1.65f, 0.35f));
+            source = new SkeletonFrame(
+                new SkeletonPose(HumanPoseSkeleton33.Definition, poses),
+                source.Metadata);
+
+            Assert.IsTrue(UnityHumanoidPoseRetargeter.TryCreateFrom(source, out var humanoid));
+            Assert.IsTrue(humanoid.TryGetJointPose(UnityHumanoidControlSkeleton.LeftHand, out var hand));
+            Assert.IsTrue(hand.HasRotation);
+            Assert.AreEqual(SkeletonDataProvenance.Inferred, hand.Provenance);
+            Assert.AreEqual("LeftWrist+LeftIndex+LeftPinky+LeftThumb", hand.Source);
+            Assert.Greater(Vector3.Dot((hand.Rotation * Vector3.up).normalized, new Vector3(-0.2f, 0.98f, 0f).normalized), 0.9f);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverIgnoresRestRotations()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "ShouldDriveRotation",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.IsNotNull(method);
+            Assert.IsFalse((bool)method.Invoke(null, new object[]
+            {
+                SkeletonJointPose.FromRotation(Quaternion.identity, 0f, SkeletonDataProvenance.Rest, "rest")
+            }));
+            Assert.IsFalse((bool)method.Invoke(null, new object[]
+            {
+                SkeletonJointPose.FromRotation(Quaternion.identity, 0f, SkeletonDataProvenance.Inferred, "missing")
+            }));
+            Assert.IsTrue((bool)method.Invoke(null, new object[]
+            {
+                SkeletonJointPose.FromRotation(Quaternion.Euler(0f, 30f, 0f), 0.5f, SkeletonDataProvenance.Inferred, "tracked")
+            }));
+        }
+
         private static SkeletonFrame CreateFrame(SkeletonJoint joint, Vector3 position, int sequenceNumber)
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
@@ -540,11 +825,90 @@ namespace HEXLab.Hextrackingconnector.Tests
                 receivedTime: sequenceNumber);
         }
 
+        private static SkeletonFrame CreateStandingHumanPoseFrame()
+        {
+            var positions = new Vector3[HumanPoseSkeleton33.JointCount];
+            var tracked = new bool[HumanPoseSkeleton33.JointCount];
+
+            SetTracked(SkeletonJoint.LeftHip, new Vector3(-0.5f, 0f, 0f));
+            SetTracked(SkeletonJoint.RightHip, new Vector3(0.5f, 0f, 0f));
+            SetTracked(SkeletonJoint.LeftShoulder, new Vector3(-0.75f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.RightShoulder, new Vector3(0.75f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.LeftElbow, new Vector3(-1.25f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.RightElbow, new Vector3(1.25f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.LeftWrist, new Vector3(-1.75f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.RightWrist, new Vector3(1.75f, 1.5f, 0f));
+            SetTracked(SkeletonJoint.LeftKnee, new Vector3(-0.5f, -1f, 0f));
+            SetTracked(SkeletonJoint.RightKnee, new Vector3(0.5f, -1f, 0f));
+            SetTracked(SkeletonJoint.LeftAnkle, new Vector3(-0.5f, -2f, 0f));
+            SetTracked(SkeletonJoint.RightAnkle, new Vector3(0.5f, -2f, 0f));
+            SetTracked(SkeletonJoint.LeftFootIndex, new Vector3(-0.5f, -2f, 0.5f));
+            SetTracked(SkeletonJoint.RightFootIndex, new Vector3(0.5f, -2f, 0.5f));
+            SetTracked(SkeletonJoint.Nose, new Vector3(0f, 2.1f, 0.5f));
+            SetTracked(SkeletonJoint.LeftEar, new Vector3(-0.25f, 2f, 0f));
+            SetTracked(SkeletonJoint.RightEar, new Vector3(0.25f, 2f, 0f));
+
+            return new SkeletonFrame(
+                HumanPoseSkeleton33.Definition,
+                positions,
+                tracked,
+                sequenceNumber: 99,
+                receivedTime: 100.5);
+
+            void SetTracked(SkeletonJoint joint, Vector3 position)
+            {
+                positions[(int)joint] = position;
+                tracked[(int)joint] = true;
+            }
+        }
+
+        private static SkeletonJointPose[] CreateUnityHumanoidPoses(params (SkeletonJointId joint, SkeletonJointPose pose)[] values)
+        {
+            var poses = new SkeletonJointPose[UnityHumanoidControlSkeleton.Definition.JointCount];
+            for (int i = 0; i < poses.Length; i++)
+            {
+                poses[i] = SkeletonJointPose.Unavailable;
+            }
+
+            foreach (var value in values)
+            {
+                poses[UnityHumanoidControlSkeleton.Definition.IndexOf(value.joint)] = value.pose;
+            }
+
+            return poses;
+        }
+
+        private static void SetHumanPose(SkeletonJointPose[] poses, SkeletonJoint joint, Vector3 position)
+        {
+            poses[(int)joint] = SkeletonJointPose.FromPosition(position, 1f, SkeletonDataProvenance.Direct, joint.ToString());
+        }
+
         private static void SetPrivateField<T>(object target, string fieldName, T value)
         {
             target.GetType()
                 .GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic)
                 .SetValue(target, value);
+        }
+
+        private sealed class TestSkeletonProvider : MonoBehaviour, ISkeletonProvider
+        {
+            private SkeletonFrame latestPose;
+            private bool hasLatestPose;
+
+            public event Action<SkeletonFrame> PoseReceived;
+
+            public bool TryGetLatestPose(out SkeletonFrame pose)
+            {
+                pose = latestPose;
+                return hasLatestPose;
+            }
+
+            public void Publish(SkeletonFrame frame)
+            {
+                latestPose = frame;
+                hasLatestPose = true;
+                PoseReceived?.Invoke(frame);
+            }
         }
 
         private static IEnumerable<MethodBase> GetCalledMethods(MethodInfo method)
