@@ -1,12 +1,10 @@
 {
 	"name": "io.hex-lab.hextrackingconnector",
 	"displayName":"HEX Tracking Connector",
-	"version": "0.1.0",
+	"version": "0.2.0",
 	"unity": "6000.3",
 	"description": "Receive body pose landmark frames from the HEX Python tracker in Unity, expose them as a clean SkeletonFrame API, and optionally render a debug line-art body.",
-	"dependencies": {
-		"com.unity.test-framework": "1.6.0"
-	},
+	"dependencies": { },
 	"author": {
 		"name": "Constantin Kleinbeck",
 		"url": "https://hex-lab.io",

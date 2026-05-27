@@ -197,9 +197,7 @@
       "version": "file:../../io.hex-lab.hextrackingconnector",
       "depth": 0,
       "source": "local",
-      "dependencies": {
-        "com.unity.test-framework": "1.6.0"
-      }
+      "dependencies": {}
     },
     "com.unity.modules.accessibility": {
       "version": "1.0.0",
