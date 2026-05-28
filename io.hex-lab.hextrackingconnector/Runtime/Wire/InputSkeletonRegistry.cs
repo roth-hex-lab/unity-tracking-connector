@@ -1,17 +1,48 @@
+using System;
+using System.Collections.Generic;
+
 namespace HEXLab.Hextrackingconnector
 {
-    internal static class InputSkeletonRegistry
+    public static class InputSkeletonRegistry
     {
         private const string MediaPipePose33Id = "mediapipe.pose.33";
 
         private static readonly MediaPipePose33WireMapper MediaPipePose33Mapper =
             new MediaPipePose33WireMapper();
+        private static readonly Dictionary<string, IWireSkeletonMapper> MappersById =
+            new Dictionary<string, IWireSkeletonMapper>(StringComparer.OrdinalIgnoreCase);
+        private static readonly object RegistryLock = new object();
+
+        static InputSkeletonRegistry()
+        {
+            Register(MediaPipePose33Id, MediaPipePose33Mapper);
+            Register("mediapipe_pose_33", MediaPipePose33Mapper);
+            Register("HumanPoseSkeleton33", MediaPipePose33Mapper);
+        }
+
+        public static void Register(string skeletonId, IWireSkeletonMapper mapper)
+        {
+            if (string.IsNullOrWhiteSpace(skeletonId))
+            {
+                throw new ArgumentException("A wire skeleton registration needs a non-empty skeleton id.", nameof(skeletonId));
+            }
+
+            if (mapper == null)
+            {
+                throw new ArgumentNullException(nameof(mapper));
+            }
+
+            lock (RegistryLock)
+            {
+                MappersById[skeletonId.Trim()] = mapper;
+            }
+        }
 
         public static bool TryResolve(string skeletonId, out SkeletonDefinition definition)
         {
-            if (IsMediaPipePose33(skeletonId))
+            if (TryGetRegisteredMapper(skeletonId, out var mapper))
             {
-                definition = HumanPoseSkeleton33.Definition;
+                definition = mapper.Definition;
                 return true;
             }
 
@@ -31,22 +62,28 @@ namespace HEXLab.Hextrackingconnector
                     return true;
                 case InputSkeletonSelection.Auto:
                 default:
-                    if (string.IsNullOrWhiteSpace(skeletonId) || IsMediaPipePose33(skeletonId))
+                    if (string.IsNullOrWhiteSpace(skeletonId))
                     {
                         mapper = MediaPipePose33Mapper;
                         return true;
                     }
 
-                    mapper = null;
-                    return false;
+                    return TryGetRegisteredMapper(skeletonId, out mapper);
             }
         }
 
-        private static bool IsMediaPipePose33(string skeletonId)
+        private static bool TryGetRegisteredMapper(string skeletonId, out IWireSkeletonMapper mapper)
         {
-            return string.Equals(skeletonId, MediaPipePose33Id, System.StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(skeletonId, "mediapipe_pose_33", System.StringComparison.OrdinalIgnoreCase) ||
-                   string.Equals(skeletonId, "HumanPoseSkeleton33", System.StringComparison.OrdinalIgnoreCase);
+            mapper = null;
+            if (string.IsNullOrWhiteSpace(skeletonId))
+            {
+                return false;
+            }
+
+            lock (RegistryLock)
+            {
+                return MappersById.TryGetValue(skeletonId.Trim(), out mapper);
+            }
         }
     }
 }

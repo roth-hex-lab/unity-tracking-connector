@@ -1,6 +1,6 @@
 namespace HEXLab.Hextrackingconnector
 {
-    internal interface IWireSkeletonMapper
+    public interface IWireSkeletonMapper
     {
         SkeletonDefinition Definition { get; }
         bool TryMapIndex(int sourceIndex, PoseMirrorMode mirrorMode, out SkeletonJointId joint);

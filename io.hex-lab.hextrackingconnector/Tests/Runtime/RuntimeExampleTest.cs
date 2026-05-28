@@ -528,6 +528,40 @@ namespace HEXLab.Hextrackingconnector.Tests
         }
 
         [Test]
+        public void InputSkeletonRegistryAllowsStudentWireMappers()
+        {
+            var definition = new SkeletonDefinition(
+                "student.test.skeleton",
+                "Student Test Skeleton",
+                new[] { new SkeletonJointId("StudentJoint") });
+            var mapper = new TestWireSkeletonMapper(definition);
+
+            InputSkeletonRegistry.Register("student.test.skeleton", mapper);
+
+            Assert.IsTrue(InputSkeletonRegistry.TryResolve("student.test.skeleton", out var resolvedDefinition));
+            Assert.AreSame(definition, resolvedDefinition);
+            Assert.IsTrue(InputSkeletonRegistry.TryGetMapper(
+                InputSkeletonSelection.Auto,
+                "student.test.skeleton",
+                out var resolvedMapper));
+            Assert.AreSame(mapper, resolvedMapper);
+            Assert.IsTrue(resolvedMapper.TryMapIndex(0, PoseMirrorMode.None, out var joint));
+            Assert.AreEqual(new SkeletonJointId("StudentJoint"), joint);
+        }
+
+        [Test]
+        public void InputSkeletonRegistryRejectsInvalidRegistrations()
+        {
+            Assert.Throws<ArgumentException>(() => InputSkeletonRegistry.Register(" ", new TestWireSkeletonMapper(
+                new SkeletonDefinition(
+                    "student.invalid.id",
+                    "Invalid Id",
+                    new[] { new SkeletonJointId("Joint") }))));
+
+            Assert.Throws<ArgumentNullException>(() => InputSkeletonRegistry.Register("student.null.mapper", null));
+        }
+
+        [Test]
         public void SkeletonFrameDoesNotExposeWireSettings()
         {
             var publicMembers = typeof(SkeletonFrame)
@@ -974,6 +1008,28 @@ namespace HEXLab.Hextrackingconnector.Tests
                 latestPose = frame;
                 hasLatestPose = true;
                 PoseReceived?.Invoke(frame);
+            }
+        }
+
+        private sealed class TestWireSkeletonMapper : IWireSkeletonMapper
+        {
+            public TestWireSkeletonMapper(SkeletonDefinition definition)
+            {
+                Definition = definition;
+            }
+
+            public SkeletonDefinition Definition { get; }
+
+            public bool TryMapIndex(int sourceIndex, PoseMirrorMode mirrorMode, out SkeletonJointId joint)
+            {
+                if (sourceIndex == 0)
+                {
+                    joint = new SkeletonJointId("StudentJoint");
+                    return true;
+                }
+
+                joint = default;
+                return false;
             }
         }
 
