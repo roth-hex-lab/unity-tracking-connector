@@ -12,6 +12,7 @@ namespace HEXLab.Hextrackingconnector
     }
 
 #pragma warning disable 0649
+    [SkeletonPipelineNode("BodyCalibration")]
     public class BodyCalibration : MonoBehaviour, ISkeletonProvider
     {
         private static readonly SkeletonJointId[] GroundJoints =

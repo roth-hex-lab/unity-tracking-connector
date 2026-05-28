@@ -648,15 +648,15 @@ PrefabInstance:
   m_SourcePrefab: {fileID: 100100000, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
 --- !u!114 &1430568560 stripped
 MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+  m_CorrespondingSourceObject: {fileID: 6270968290373794044, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
   m_PrefabInstance: {fileID: 1430568559}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3fcdf5fa90c84293adfdd483a684f7e0, type: 3}
+  m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonConverter
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
 --- !u!1001 &1577609429
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -816,17 +816,6 @@ PrefabInstance:
       insertIndex: -1
       addedObject: {fileID: 473666982}
   m_SourcePrefab: {fileID: 100100000, guid: bb96394e9629f20408ea23d3760ba123, type: 3}
---- !u!114 &1780240825 stripped
-MonoBehaviour:
-  m_CorrespondingSourceObject: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
-  m_PrefabInstance: {fileID: 1830273102}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 3fcdf5fa90c84293adfdd483a684f7e0, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonConverter
 --- !u!1001 &1830273102
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -894,12 +883,23 @@ PrefabInstance:
     - target: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: skeletonProvider
       value: 
-      objectReference: {fileID: 1780240825}
+      objectReference: {fileID: 1830273103}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+--- !u!114 &1830273103 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6270968290373794044, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+  m_PrefabInstance: {fileID: 1830273102}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
 --- !u!1001 &2294380710246130077
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -967,6 +967,10 @@ PrefabInstance:
     - target: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: skeletonProvider
       value: 
+      objectReference: {fileID: 2294380710246130078}
+    - target: {fileID: 6270968290373794044, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+      propertyPath: skeletonProvider
+      value: 
       objectReference: {fileID: 1577609431}
     m_RemovedComponents:
     - {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
@@ -974,6 +978,17 @@ PrefabInstance:
     m_AddedGameObjects: []
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+--- !u!114 &2294380710246130078 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6270968290373794044, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
+  m_PrefabInstance: {fileID: 2294380710246130077}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0

@@ -17,6 +17,7 @@ namespace HEXLab.Hextrackingconnector
         Udp,
     }
 
+    [SkeletonPipelineNode("CommServer")]
     public class CommServer : MonoBehaviour, ISkeletonProvider
     {
         private const int MaxPayloadBytes = 1024 * 1024;

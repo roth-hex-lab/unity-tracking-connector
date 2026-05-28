@@ -98,4 +98,4 @@ MonoBehaviour:
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonSmoothing
   sourceProvider: {fileID: 7801181246178537890}
   smoothingMode: 1
-  movingAverageWindowSize: 5
+  movingAverageWindowSize: 3

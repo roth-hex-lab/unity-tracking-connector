@@ -4,6 +4,7 @@ using UnityEngine;
 namespace HEXLab.Hextrackingconnector
 {
 #pragma warning disable 0649
+    [SkeletonPipelineNode("SkeletonSmoothing")]
     public class SkeletonSmoothing : MonoBehaviour, ISkeletonProvider
     {
         [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour sourceProvider;

@@ -11,11 +11,22 @@ namespace HEXLab.Hextrackingconnector.Editor
         public override float GetPropertyHeight(SerializedProperty property, GUIContent label)
         {
             var height = EditorGUIUtility.singleLineHeight;
-            if (GetValidationMessage(property) != null)
+            var message = GetValidationMessage(property);
+            if (message != null)
             {
-                height += EditorGUIUtility.standardVerticalSpacing +
-                          EditorGUIUtility.singleLineHeight * 2f +
-                          HelpBoxPadding;
+                height += EditorGUIUtility.standardVerticalSpacing + GetHelpBoxHeight(message);
+                return height;
+            }
+
+            var analysis = GetPipelineAnalysis(property);
+            if (analysis.HasFlow)
+            {
+                height += EditorGUIUtility.standardVerticalSpacing + GetHelpBoxHeight(analysis.FlowMessage);
+            }
+
+            if (analysis.HasWarnings)
+            {
+                height += EditorGUIUtility.standardVerticalSpacing + GetHelpBoxHeight(analysis.WarningMessage);
             }
 
             return height;
@@ -46,15 +57,49 @@ namespace HEXLab.Hextrackingconnector.Editor
             var message = GetValidationMessage(property);
             if (message != null)
             {
-                var helpRect = new Rect(
-                    position.x,
-                    fieldRect.yMax + EditorGUIUtility.standardVerticalSpacing,
-                    position.width,
-                    EditorGUIUtility.singleLineHeight * 2f + HelpBoxPadding);
-                EditorGUI.HelpBox(helpRect, message, MessageType.Error);
+                DrawHelpBox(position, ref fieldRect, message, MessageType.Error);
+            }
+            else
+            {
+                var analysis = GetPipelineAnalysis(property);
+                if (analysis.HasFlow)
+                {
+                    DrawHelpBox(position, ref fieldRect, analysis.FlowMessage, MessageType.Info);
+                }
+
+                if (analysis.HasWarnings)
+                {
+                    DrawHelpBox(position, ref fieldRect, analysis.WarningMessage, MessageType.Warning);
+                }
             }
 
             EditorGUI.EndProperty();
+        }
+
+        private static void DrawHelpBox(
+            Rect position,
+            ref Rect previousRect,
+            string message,
+            MessageType messageType)
+        {
+            var helpRect = new Rect(
+                position.x,
+                previousRect.yMax + EditorGUIUtility.standardVerticalSpacing,
+                position.width,
+                GetHelpBoxHeight(message, position.width));
+            EditorGUI.HelpBox(helpRect, message, messageType);
+            previousRect = helpRect;
+        }
+
+        private static float GetHelpBoxHeight(string message, float width = 0f)
+        {
+            width = width > 0f
+                ? width
+                : Mathf.Max(160f, EditorGUIUtility.currentViewWidth - 48f);
+
+            return Mathf.Max(
+                EditorGUIUtility.singleLineHeight * 2f + HelpBoxPadding,
+                EditorStyles.helpBox.CalcHeight(new GUIContent(message), width) + HelpBoxPadding);
         }
 
         private string GetValidationMessage(SerializedProperty property)
@@ -71,6 +116,18 @@ namespace HEXLab.Hextrackingconnector.Editor
                 component,
                 owner,
                 providerAttribute.AllowSelf);
+        }
+
+        private static SkeletonPipelineAnalysis GetPipelineAnalysis(SerializedProperty property)
+        {
+            var component = property.objectReferenceValue as MonoBehaviour;
+            if (component == null)
+            {
+                return SkeletonPipelineAnalysis.Empty;
+            }
+
+            var owner = property.serializedObject.targetObject as MonoBehaviour;
+            return SkeletonPipelineAnalyzer.Analyze(component, owner);
         }
     }
 }

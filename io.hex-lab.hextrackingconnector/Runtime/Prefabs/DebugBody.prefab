@@ -10,7 +10,6 @@ GameObject:
   m_Component:
   - component: {fileID: 2687133751411037540}
   - component: {fileID: 8372266225387134459}
-  - component: {fileID: 4719205656552789901}
   m_Layer: 0
   m_Name: DebugBody
   m_TagString: Untagged
@@ -46,8 +45,6 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyDebugVis
   skeletonProvider: {fileID: 0}
-  applyCalibration: 1
-  calibration: {fileID: 4719205656552789901}
   parent: {fileID: 0}
   jointPrefab: {fileID: 4198472772038802745, guid: 9ef7a175d3b716149bc5415395fda98d, type: 3}
   linePrefab: {fileID: 6873139827369952066, guid: f950279c8cf429f4b8423fdad2aa23e9, type: 3}
@@ -58,21 +55,3 @@ MonoBehaviour:
   jointScale: 0.2
   headScale: 0.3
   connectionScale: 0.04
---- !u!114 &4719205656552789901
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 4293908773506375481}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 8ed05ad0b0454df38456224cb596859c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
-  skeletonProvider: {fileID: 0}
-  publishCalibratedPose: 1
-  autoCalibrate: 1
-  calibrationMode: 1
-  calibrationOffset: {x: 0, y: 0, z: 0}
-  groundHeight: 0

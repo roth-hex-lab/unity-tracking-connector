@@ -12,6 +12,7 @@ namespace HEXLab.Hextrackingconnector
     }
 
 #pragma warning disable 0649
+    [SkeletonPipelineNode("SkeletonConverter")]
     public class SkeletonConverter : MonoBehaviour, ISkeletonProvider
     {
         [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour sourceProvider;

@@ -4,12 +4,11 @@ using UnityEngine.Serialization;
 namespace HEXLab.Hextrackingconnector
 {
 #pragma warning disable 0649
+    [SkeletonPipelineNode("BodyDebugVis")]
     public class BodyDebugVis : MonoBehaviour
     {
         [Header("Source")]
         [SerializeField, FormerlySerializedAs("commServer"), SkeletonProvider] private MonoBehaviour skeletonProvider;
-        [SerializeField] private bool applyCalibration = true;
-        [SerializeField] private BodyCalibration calibration;
 
         [Header("Prefabs")]
         [SerializeField] private Transform parent;
@@ -36,31 +35,17 @@ namespace HEXLab.Hextrackingconnector
         private GameObject headInstance;
         private bool visualsCreated;
 
-        public Vector3 CalibrationOffset => calibration == null ? Vector3.zero : calibration.CalibrationOffset;
         public Vector3 VirtualHeadPosition { get; private set; }
-        public bool UsesLocalOneShotCalibration
-        {
-            get
-            {
-                var candidate = calibration == null ? GetComponent<BodyCalibration>() : calibration;
-                return applyCalibration &&
-                       candidate != null &&
-                       candidate.gameObject == gameObject &&
-                       !ReferenceEquals(skeletonProvider, candidate);
-            }
-        }
 
         private void OnEnable()
         {
             ResolveSkeletonProvider();
             Subscribe();
-            SubscribeCalibration();
             EnsureVisuals(HumanPoseSkeleton33.Definition);
         }
 
         private void OnDisable()
         {
-            UnsubscribeCalibration();
             Unsubscribe();
         }
 
@@ -69,19 +54,9 @@ namespace HEXLab.Hextrackingconnector
             DestroyVisuals();
         }
 
-        public void ResetCalibration()
-        {
-            if (applyCalibration)
-            {
-                calibration?.ResetCalibration();
-            }
-
-            ApplyPose();
-        }
-
         public void ApplyCurrentPose()
         {
-            ApplyCalibration();
+            CopyCurrentPoseToDisplay();
             ApplyPose();
         }
 
@@ -90,11 +65,6 @@ namespace HEXLab.Hextrackingconnector
             if (skeletonProvider == null)
             {
                 skeletonProvider = FindFirstObjectByType<CommServer>();
-            }
-
-            if (applyCalibration && calibration == null)
-            {
-                calibration = GetComponent<BodyCalibration>();
             }
 
             activeSkeletonProvider = null;
@@ -127,30 +97,6 @@ namespace HEXLab.Hextrackingconnector
             activeSkeletonProvider = null;
         }
 
-        private void SubscribeCalibration()
-        {
-            if (calibration != null)
-            {
-                calibration.CalibrationChanged += OnCalibrationChanged;
-            }
-        }
-
-        private void UnsubscribeCalibration()
-        {
-            if (calibration != null)
-            {
-                calibration.CalibrationChanged -= OnCalibrationChanged;
-            }
-        }
-
-        private void OnCalibrationChanged()
-        {
-            if (ShouldApplyOneShotCalibration)
-            {
-                ApplyCurrentPose();
-            }
-        }
-
         private void OnPoseReceived(SkeletonFrame frame)
         {
             EnsureVisuals(frame.Definition);
@@ -178,24 +124,13 @@ namespace HEXLab.Hextrackingconnector
             ApplyCurrentPose();
         }
 
-        private void ApplyCalibration()
+        private void CopyCurrentPoseToDisplay()
         {
-            if (ShouldApplyOneShotCalibration)
-            {
-                calibration.Apply(currentDefinition, currentPositions, tracked, displayPositions);
-                return;
-            }
-
             for (int i = 0; i < currentDefinition.JointCount; i++)
             {
                 displayPositions[i] = tracked[i] ? currentPositions[i] : Vector3.zero;
             }
         }
-
-        private bool ShouldApplyOneShotCalibration =>
-            applyCalibration &&
-            calibration != null &&
-            !ReferenceEquals(activeSkeletonProvider, calibration);
 
         private void ApplyPose()
         {

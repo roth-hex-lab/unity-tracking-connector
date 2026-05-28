@@ -5,6 +5,7 @@ using UnityEngine;
 namespace HEXLab.Hextrackingconnector
 {
 #pragma warning disable 0649
+    [SkeletonPipelineNode("DirectHumanoidBoneDriver")]
     public class DirectHumanoidBoneDriver : MonoBehaviour
     {
         [Header("Source")]
