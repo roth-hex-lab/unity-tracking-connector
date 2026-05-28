@@ -28,8 +28,6 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private InputSkeletonSelection inputSkeleton = InputSkeletonSelection.Auto;
         [SerializeField] private PoseCoordinateSource coordinateSource = PoseCoordinateSource.Free;
         [SerializeField] private PoseMirrorMode mirrorMode = PoseMirrorMode.None;
-        [SerializeField] private PoseSmoothingMode smoothingMode = PoseSmoothingMode.None;
-        [SerializeField, Min(1)] private int movingAverageWindowSize = 5;
         [SerializeField] private bool logConnectionEvents = true;
 
         private readonly ConcurrentQueue<SkeletonFrame> pendingFrames = new ConcurrentQueue<SkeletonFrame>();
@@ -41,9 +39,6 @@ namespace HEXLab.Hextrackingconnector
         private volatile bool isRunning;
         private int sequenceNumber;
 
-        private IPoseSmoother poseSmoother;
-        private PoseSmoothingMode activeSmoothingMode;
-        private int activeMovingAverageWindowSize;
         private SkeletonFrame latestPose;
         private bool hasLatestPose;
 
@@ -69,31 +64,6 @@ namespace HEXLab.Hextrackingconnector
             set => mirrorMode = value;
         }
 
-        public PoseSmoothingMode SmoothingMode
-        {
-            get => smoothingMode;
-            set
-            {
-                if (smoothingMode == value)
-                {
-                    return;
-                }
-
-                smoothingMode = value;
-                ResetSmoother();
-            }
-        }
-
-        public int MovingAverageWindowSize
-        {
-            get => movingAverageWindowSize;
-            set
-            {
-                movingAverageWindowSize = Mathf.Max(1, value);
-                ResetSmoother();
-            }
-        }
-
         public bool IsRunning => isRunning;
         public int PendingFrameCount => pendingFrames.Count;
 
@@ -103,21 +73,14 @@ namespace HEXLab.Hextrackingconnector
             return hasLatestPose;
         }
 
-        public void ResetSmoother()
-        {
-            EnsureSmoother(forceReset: true);
-        }
-
         private void Start()
         {
             CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
-            EnsureSmoother(forceReset: true);
             StartTransport();
         }
 
         private void Update()
         {
-            EnsureSmoother(forceReset: false);
             PublishPendingFrames();
         }
 
@@ -134,7 +97,6 @@ namespace HEXLab.Hextrackingconnector
             }
 
             udpPort = Mathf.Max(1, udpPort);
-            movingAverageWindowSize = Mathf.Max(1, movingAverageWindowSize);
         }
 
         private void StartTransport()
@@ -186,7 +148,7 @@ namespace HEXLab.Hextrackingconnector
 
             while (pendingFrames.TryDequeue(out var rawPose))
             {
-                poseToPublish = poseSmoother.Smooth(rawPose);
+                poseToPublish = rawPose;
                 hasPoseToPublish = true;
             }
 
@@ -219,21 +181,6 @@ namespace HEXLab.Hextrackingconnector
                     Debug.LogException(exception, this);
                 }
             }
-        }
-
-        private void EnsureSmoother(bool forceReset)
-        {
-            if (!forceReset &&
-                poseSmoother != null &&
-                activeSmoothingMode == smoothingMode &&
-                activeMovingAverageWindowSize == movingAverageWindowSize)
-            {
-                return;
-            }
-
-            poseSmoother = PoseSmootherFactory.Create(smoothingMode, movingAverageWindowSize);
-            activeSmoothingMode = smoothingMode;
-            activeMovingAverageWindowSize = movingAverageWindowSize;
         }
 
         private void RunTransportLoop()

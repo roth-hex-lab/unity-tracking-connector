@@ -405,7 +405,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e3548f7ed0e4dbb8751de4602af20c4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.DirectHumanoidBoneDriver
-  skeletonProvider: {fileID: 1577609430}
+  skeletonProvider: {fileID: 1577609431}
   retargetSourcePose: 1
   logUnsupportedPoses: 1
   animator: {fileID: 473666980}
@@ -628,7 +628,7 @@ PrefabInstance:
     - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: sourceProvider
       value: 
-      objectReference: {fileID: 1577609430}
+      objectReference: {fileID: 1577609431}
     - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: logUnsupportedConversions
       value: 1
@@ -741,6 +741,17 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b535c0730b0f404e8fb13005895b422b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.CommServer
+--- !u!114 &1577609431 stripped
+MonoBehaviour:
+  m_CorrespondingSourceObject: {fileID: 6897055813444207853, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+  m_PrefabInstance: {fileID: 1577609429}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0e496d6270a940768da6162d8e7dcae1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonSmoothing
 --- !u!1001 &1592051867
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -871,7 +882,7 @@ PrefabInstance:
     - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: sourceProvider
       value: 
-      objectReference: {fileID: 1577609430}
+      objectReference: {fileID: 1577609431}
     - target: {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: logUnsupportedConversions
       value: 1
@@ -956,7 +967,7 @@ PrefabInstance:
     - target: {fileID: 2378944114114727802, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
       propertyPath: skeletonProvider
       value: 
-      objectReference: {fileID: 0}
+      objectReference: {fileID: 1577609431}
     m_RemovedComponents:
     - {fileID: 2110557634481904032, guid: efbef4c6312c9e74da56732b40ff500b, type: 3}
     m_RemovedGameObjects: []

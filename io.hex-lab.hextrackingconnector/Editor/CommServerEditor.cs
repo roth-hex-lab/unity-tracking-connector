@@ -12,8 +12,6 @@ namespace HEXLab.Hextrackingconnector.Editor
         private SerializedProperty inputSkeleton;
         private SerializedProperty coordinateSource;
         private SerializedProperty mirrorMode;
-        private SerializedProperty smoothingMode;
-        private SerializedProperty movingAverageWindowSize;
         private SerializedProperty logConnectionEvents;
 
         private void OnEnable()
@@ -24,8 +22,6 @@ namespace HEXLab.Hextrackingconnector.Editor
             inputSkeleton = serializedObject.FindProperty("inputSkeleton");
             coordinateSource = serializedObject.FindProperty("coordinateSource");
             mirrorMode = serializedObject.FindProperty("mirrorMode");
-            smoothingMode = serializedObject.FindProperty("smoothingMode");
-            movingAverageWindowSize = serializedObject.FindProperty("movingAverageWindowSize");
             logConnectionEvents = serializedObject.FindProperty("logConnectionEvents");
         }
 
@@ -36,8 +32,6 @@ namespace HEXLab.Hextrackingconnector.Editor
             DrawTransportSection();
             EditorGUILayout.Space(8f);
             DrawPoseSection();
-            EditorGUILayout.Space(8f);
-            DrawSmoothingSection();
             EditorGUILayout.Space(8f);
             DrawRuntimeSection();
 
@@ -72,31 +66,6 @@ namespace HEXLab.Hextrackingconnector.Editor
             EditorGUILayout.PropertyField(mirrorMode, new GUIContent("Mirror Mode"));
         }
 
-        private void DrawSmoothingSection()
-        {
-            EditorGUILayout.LabelField("Smoothing", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(smoothingMode, new GUIContent("Algorithm"));
-
-            var selectedSmoothing = (PoseSmoothingMode)smoothingMode.enumValueIndex;
-            switch (selectedSmoothing)
-            {
-                case PoseSmoothingMode.MovingAverage:
-                    EditorGUILayout.PropertyField(
-                        movingAverageWindowSize,
-                        new GUIContent("Window Size", "Number of incoming pose frames averaged together."));
-                    EditorGUILayout.HelpBox(
-                        "Moving average reduces jitter but adds latency as the window grows.",
-                        MessageType.Info);
-                    break;
-                case PoseSmoothingMode.None:
-                default:
-                    EditorGUILayout.HelpBox(
-                        "No smoothing. The latest received pose is published once per Unity frame.",
-                        MessageType.Info);
-                    break;
-            }
-        }
-
         private void DrawRuntimeSection()
         {
             if (!Application.isPlaying)
@@ -111,11 +80,6 @@ namespace HEXLab.Hextrackingconnector.Editor
                 EditorGUILayout.Toggle("Running", server.IsRunning);
                 EditorGUILayout.IntField("Pending Frames", server.PendingFrameCount);
                 EditorGUILayout.Toggle("Has Pose", server.TryGetLatestPose(out _));
-            }
-
-            if (GUILayout.Button("Reset Smoother"))
-            {
-                server.ResetSmoother();
             }
         }
     }

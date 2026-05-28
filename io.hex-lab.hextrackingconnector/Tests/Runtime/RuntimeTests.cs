@@ -9,12 +9,12 @@ using UnityEngine;
 
 namespace HEXLab.Hextrackingconnector.Tests
 {
-    class RuntimeExampleTest
+    class RuntimeTests
     {
         private static readonly OpCode[] OneByteOpCodes = new OpCode[0x100];
         private static readonly OpCode[] TwoByteOpCodes = new OpCode[0x100];
 
-        static RuntimeExampleTest()
+        static RuntimeTests()
         {
             foreach (var field in typeof(OpCodes).GetFields(BindingFlags.Static | BindingFlags.Public))
             {
@@ -641,6 +641,71 @@ namespace HEXLab.Hextrackingconnector.Tests
 
             Assert.IsTrue(smoothed.TryGetJoint(SkeletonJoint.Nose, out var nose));
             Assert.AreEqual(Vector3.one * 10f, nose);
+        }
+
+        [Test]
+        public void SkeletonSmoothingIsInspectableProviderAdapter()
+        {
+            var smoothingType = typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.SkeletonSmoothing");
+
+            Assert.IsNotNull(smoothingType);
+            Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(smoothingType));
+            Assert.IsTrue(typeof(ISkeletonProvider).IsAssignableFrom(smoothingType));
+            AssertProviderFieldHasAttribute(
+                smoothingType,
+                "sourceProvider",
+                typeof(SkeletonProviderAttribute),
+                expectedAllowSelf: false);
+        }
+
+        [Test]
+        public void SkeletonSmoothingPublishesSmoothedFramesFromSourceProvider()
+        {
+            var smoothingType = typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.SkeletonSmoothing");
+            Assert.IsNotNull(smoothingType);
+
+            var gameObject = new GameObject("SkeletonSmoothingProviderTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var smoothing = (MonoBehaviour)gameObject.AddComponent(smoothingType);
+            SetPrivateField(smoothing, "sourceProvider", source);
+            SetPrivateField(smoothing, "smoothingMode", PoseSmoothingMode.MovingAverage);
+            SetPrivateField(smoothing, "movingAverageWindowSize", 2);
+
+            var received = default(SkeletonFrame);
+            var receivedCount = 0;
+            ((ISkeletonProvider)smoothing).PoseReceived += frame =>
+            {
+                received = frame;
+                receivedCount++;
+            };
+
+            try
+            {
+                gameObject.SetActive(true);
+                source.Publish(CreateFrame(SkeletonJoint.LeftWrist, Vector3.zero, 1));
+                source.Publish(CreateFrame(SkeletonJoint.LeftWrist, new Vector3(2f, 4f, 6f), 2));
+
+                Assert.AreEqual(2, receivedCount);
+                Assert.IsTrue(((ISkeletonProvider)smoothing).TryGetLatestPose(out var latest));
+                Assert.AreEqual(received.SequenceNumber, latest.SequenceNumber);
+                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist));
+                Assert.AreEqual(new Vector3(1f, 2f, 3f), wrist);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void CommServerDoesNotOwnSmoothingConfiguration()
+        {
+            Assert.IsNull(typeof(CommServer).GetProperty("SmoothingMode"));
+            Assert.IsNull(typeof(CommServer).GetProperty("MovingAverageWindowSize"));
+            Assert.IsNull(typeof(CommServer).GetMethod("ResetSmoother"));
+            Assert.IsNull(typeof(CommServer).GetField("smoothingMode", BindingFlags.Instance | BindingFlags.NonPublic));
+            Assert.IsNull(typeof(CommServer).GetField("movingAverageWindowSize", BindingFlags.Instance | BindingFlags.NonPublic));
         }
 
         [Test]
