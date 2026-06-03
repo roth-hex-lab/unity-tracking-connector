@@ -1227,16 +1227,19 @@ namespace HEXLab.Hextrackingconnector.Tests
             {
                 rootRotation,
                 restRootRotation,
+                Quaternion.identity,
+                false,
                 restRootDirection,
                 true,
-                targetRootRotation
+                targetRootRotation,
+                false
             });
 
             AssertQuaternionApproximately(expected, result);
         }
 
         [Test]
-        public void DirectHumanoidBoneDriverUsesTrackedRotationDirectlyWithoutRestDirection()
+        public void DirectHumanoidBoneDriverAppliesReferenceDeltaWithoutRestDirection()
         {
             var method = typeof(DirectHumanoidBoneDriver).GetMethod(
                 "CalculateBoneWorldRotation",
@@ -1244,16 +1247,50 @@ namespace HEXLab.Hextrackingconnector.Tests
             var rootRotation = Quaternion.Euler(0f, 180f, 0f);
             var restRootRotation = Quaternion.Euler(0f, 0f, 35f);
             var targetRootRotation = Quaternion.Euler(10f, 20f, 30f);
-            var expected = rootRotation * targetRootRotation;
+            var expected = rootRotation * targetRootRotation * restRootRotation;
 
             Assert.IsNotNull(method);
             var result = (Quaternion)method.Invoke(null, new object[]
             {
                 rootRotation,
                 restRootRotation,
+                Quaternion.identity,
+                true,
                 Vector3.zero,
                 false,
-                targetRootRotation
+                targetRootRotation,
+                true
+            });
+
+            AssertQuaternionApproximately(expected, result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverAppliesFullRotationDeltaFromReferenceControlRotation()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateBoneWorldRotation",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var rootRotation = Quaternion.Euler(0f, 90f, 0f);
+            var restRootRotation = Quaternion.Euler(5f, 10f, 15f);
+            var referenceControlRotation = Quaternion.Euler(0f, 0f, 45f);
+            var targetRootRotation = Quaternion.Euler(0f, 0f, 90f);
+            var expected =
+                rootRotation *
+                (targetRootRotation * Quaternion.Inverse(referenceControlRotation)) *
+                restRootRotation;
+
+            Assert.IsNotNull(method);
+            var result = (Quaternion)method.Invoke(null, new object[]
+            {
+                rootRotation,
+                restRootRotation,
+                referenceControlRotation,
+                true,
+                Vector3.up,
+                true,
+                targetRootRotation,
+                true
             });
 
             AssertQuaternionApproximately(expected, result);

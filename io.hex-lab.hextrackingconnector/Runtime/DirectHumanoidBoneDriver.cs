@@ -69,8 +69,10 @@ namespace HEXLab.Hextrackingconnector
             public HumanBodyBones Bone;
             public Transform Transform;
             public Quaternion RestRootRotation;
+            public Quaternion ReferenceControlRotation;
             public Vector3 RestRootDirection;
             public bool HasRestDirection;
+            public bool HasReferenceControlRotation;
         }
 
         private void OnEnable()
@@ -250,9 +252,12 @@ namespace HEXLab.Hextrackingconnector
                 binding.Transform.rotation = CalculateBoneWorldRotation(
                     root.rotation,
                     binding.RestRootRotation,
+                    binding.ReferenceControlRotation,
+                    binding.HasReferenceControlRotation,
                     binding.RestRootDirection,
                     binding.HasRestDirection,
-                    targetPose.Rotation);
+                    targetPose.Rotation,
+                    ShouldUseReferenceRotation(binding, targetPose));
             }
         }
 
@@ -293,12 +298,19 @@ namespace HEXLab.Hextrackingconnector
                     Bone = bone,
                     Transform = boneTransform,
                     RestRootRotation = Quaternion.Inverse(root.rotation) * boneTransform.rotation,
+                    ReferenceControlRotation = Quaternion.identity,
+                    HasReferenceControlRotation = true,
                 };
 
                 if (TryGetRestDirection(root, boneTransform, joint, out var restRootDirection))
                 {
                     binding.RestRootDirection = restRootDirection;
                     binding.HasRestDirection = true;
+
+                    if (TryCreateReferenceControlRotation(restRootDirection, out var referenceControlRotation))
+                    {
+                        binding.ReferenceControlRotation = referenceControlRotation;
+                    }
                 }
 
                 bindings.Add(binding);
@@ -450,6 +462,32 @@ namespace HEXLab.Hextrackingconnector
 
             restRootDirection = default;
             return false;
+        }
+
+        private static bool TryCreateReferenceControlRotation(
+            Vector3 restRootDirection,
+            out Quaternion referenceControlRotation)
+        {
+            referenceControlRotation = Quaternion.identity;
+            if (restRootDirection.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            var up = restRootDirection.normalized;
+            var forward = Vector3.ProjectOnPlane(Vector3.forward, up);
+            if (forward.sqrMagnitude <= 0.0001f)
+            {
+                forward = Vector3.ProjectOnPlane(Vector3.right, up);
+            }
+
+            if (forward.sqrMagnitude <= 0.0001f)
+            {
+                return false;
+            }
+
+            referenceControlRotation = Quaternion.LookRotation(forward.normalized, up);
+            return true;
         }
 
         private static IEnumerable<SkeletonJointId> GetChildJointCandidates(SkeletonJointId joint)
@@ -636,13 +674,22 @@ namespace HEXLab.Hextrackingconnector
         private static Quaternion CalculateBoneWorldRotation(
             Quaternion rootRotation,
             Quaternion restRootRotation,
+            Quaternion referenceControlRotation,
+            bool hasReferenceControlRotation,
             Vector3 restRootDirection,
             bool hasRestDirection,
-            Quaternion targetRootRotation)
+            Quaternion targetRootRotation,
+            bool useReferenceRotation)
         {
+            if (useReferenceRotation && hasReferenceControlRotation)
+            {
+                var controlDelta = targetRootRotation * Quaternion.Inverse(referenceControlRotation);
+                return rootRotation * controlDelta * restRootRotation;
+            }
+
             if (!hasRestDirection)
             {
-                return rootRotation * targetRootRotation;
+                return rootRotation * targetRootRotation * restRootRotation;
             }
 
             var targetRootDirection = targetRootRotation * Vector3.up;
@@ -656,6 +703,16 @@ namespace HEXLab.Hextrackingconnector
                 restRootDirection.normalized,
                 targetRootDirection.normalized);
             return rootRotation * rootDelta * restRootRotation;
+        }
+
+        private static bool ShouldUseReferenceRotation(BoneBinding binding, SkeletonJointPose pose)
+        {
+            if (!binding.HasReferenceControlRotation)
+            {
+                return false;
+            }
+
+            return !binding.HasRestDirection || pose.Provenance == SkeletonDataProvenance.Direct;
         }
 
         private static bool ShouldDriveRotation(SkeletonJointPose pose)
