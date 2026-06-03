@@ -1041,6 +1041,107 @@ namespace HEXLab.Hextrackingconnector.Tests
             }));
         }
 
+        [Test]
+        public void DirectHumanoidBoneDriverAppliesRootTranslationInAvatarLocalSpace()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateRootLocalPosition",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var initialPosition = new Vector3(10f, 0f, 20f);
+            var initialRotation = Quaternion.Euler(0f, 180f, 0f);
+            var restHipsRootPosition = new Vector3(0f, 1f, 0f);
+            var targetHipsPosition = new Vector3(0f, 1.5f, -2f);
+
+            Assert.IsNotNull(method);
+            var result = (Vector3)method.Invoke(null, new object[]
+            {
+                initialPosition,
+                initialRotation,
+                restHipsRootPosition,
+                targetHipsPosition,
+                1f
+            });
+
+            AssertVectorApproximately(
+                initialPosition + initialRotation * new Vector3(0f, 0.5f, -2f),
+                result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverCalculatesBoneRotationFromRootSpaceRestPose()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateBoneWorldRotation",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var rootRotation = Quaternion.Euler(0f, 180f, 0f);
+            var restRootRotation = Quaternion.Euler(0f, 0f, 35f);
+            var restRootDirection = new Vector3(0f, 1f, 0f);
+            var targetRootRotation = Quaternion.LookRotation(Vector3.up, Vector3.forward);
+            var expected =
+                rootRotation *
+                Quaternion.FromToRotation(restRootDirection, targetRootRotation * Vector3.up) *
+                restRootRotation;
+
+            Assert.IsNotNull(method);
+            var result = (Quaternion)method.Invoke(null, new object[]
+            {
+                rootRotation,
+                restRootRotation,
+                restRootDirection,
+                true,
+                targetRootRotation
+            });
+
+            AssertQuaternionApproximately(expected, result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverUsesTrackedRotationDirectlyWithoutRestDirection()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateBoneWorldRotation",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var rootRotation = Quaternion.Euler(0f, 180f, 0f);
+            var restRootRotation = Quaternion.Euler(0f, 0f, 35f);
+            var targetRootRotation = Quaternion.Euler(10f, 20f, 30f);
+            var expected = rootRotation * targetRootRotation;
+
+            Assert.IsNotNull(method);
+            var result = (Quaternion)method.Invoke(null, new object[]
+            {
+                rootRotation,
+                restRootRotation,
+                Vector3.zero,
+                false,
+                targetRootRotation
+            });
+
+            AssertQuaternionApproximately(expected, result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverUsesFallbackChildrenForOptionalHumanoidBones()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "GetChildJointCandidates",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.IsNotNull(method);
+            var candidates = ((IEnumerable<SkeletonJointId>)method.Invoke(null, new object[]
+            {
+                UnityHumanoidControlSkeleton.Chest
+            })).ToArray();
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    UnityHumanoidControlSkeleton.UpperChest,
+                    UnityHumanoidControlSkeleton.Neck,
+                    UnityHumanoidControlSkeleton.Head,
+                },
+                candidates);
+        }
+
         private static SkeletonFrame CreateFrame(SkeletonJointId joint, Vector3 position, int sequenceNumber)
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
@@ -1116,6 +1217,22 @@ namespace HEXLab.Hextrackingconnector.Tests
         private static int HumanPoseIndex(SkeletonJointId joint)
         {
             return HumanPoseSkeleton33.Definition.IndexOf(joint);
+        }
+
+        private static void AssertVectorApproximately(Vector3 expected, Vector3 actual, float tolerance = 0.0001f)
+        {
+            Assert.LessOrEqual(
+                Vector3.Distance(expected, actual),
+                tolerance,
+                $"Expected {expected}, got {actual}.");
+        }
+
+        private static void AssertQuaternionApproximately(Quaternion expected, Quaternion actual, float tolerance = 0.0001f)
+        {
+            Assert.GreaterOrEqual(
+                Mathf.Abs(Quaternion.Dot(expected, actual)),
+                1f - tolerance,
+                $"Expected {expected.eulerAngles}, got {actual.eulerAngles}.");
         }
 
         private static void AssertProviderFieldHasAttribute(

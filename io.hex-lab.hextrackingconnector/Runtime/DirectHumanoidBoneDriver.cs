@@ -24,6 +24,9 @@ namespace HEXLab.Hextrackingconnector
         private SkeletonFrame latestPose;
         private bool hasLatestPose;
         private Vector3 initialRootLocalPosition;
+        private Quaternion initialRootLocalRotation;
+        private Vector3 restHipsRootPosition;
+        private bool hasRestHipsRootPosition;
         private string lastUnsupportedDefinitionId;
 
         private struct BoneBinding
@@ -31,7 +34,7 @@ namespace HEXLab.Hextrackingconnector
             public SkeletonJointId Joint;
             public HumanBodyBones Bone;
             public Transform Transform;
-            public Quaternion RestWorldRotation;
+            public Quaternion RestRootRotation;
             public Vector3 RestRootDirection;
             public bool HasRestDirection;
         }
@@ -99,6 +102,9 @@ namespace HEXLab.Hextrackingconnector
             initialRootLocalPosition = animator != null
                 ? animator.transform.localPosition
                 : transform.localPosition;
+            initialRootLocalRotation = animator != null
+                ? animator.transform.localRotation
+                : transform.localRotation;
         }
 
         private void Subscribe()
@@ -159,7 +165,12 @@ namespace HEXLab.Hextrackingconnector
             if (applyRootPosition &&
                 frame.TryGetJoint(UnityHumanoidControlSkeleton.Hips, out var hipsPosition))
             {
-                root.localPosition = initialRootLocalPosition + hipsPosition * positionScale;
+                root.localPosition = CalculateRootLocalPosition(
+                    initialRootLocalPosition,
+                    initialRootLocalRotation,
+                    hasRestHipsRootPosition ? restHipsRootPosition : Vector3.zero,
+                    hipsPosition,
+                    positionScale);
             }
 
             for (int i = 0; i < bindings.Count; i++)
@@ -172,24 +183,12 @@ namespace HEXLab.Hextrackingconnector
                     continue;
                 }
 
-                var targetRootRotation = targetPose.Rotation;
-                if (!binding.HasRestDirection)
-                {
-                    binding.Transform.rotation = root.rotation * targetRootRotation;
-                    continue;
-                }
-
-                var targetRootDirection = targetRootRotation * Vector3.up;
-                if (targetRootDirection.sqrMagnitude <= 0.0001f)
-                {
-                    continue;
-                }
-
-                var restWorldDirection = root.TransformDirection(binding.RestRootDirection);
-                var targetWorldDirection = root.TransformDirection(targetRootDirection.normalized);
-                binding.Transform.rotation =
-                    Quaternion.FromToRotation(restWorldDirection, targetWorldDirection) *
-                    binding.RestWorldRotation;
+                binding.Transform.rotation = CalculateBoneWorldRotation(
+                    root.rotation,
+                    binding.RestRootRotation,
+                    binding.RestRootDirection,
+                    binding.HasRestDirection,
+                    targetPose.Rotation);
             }
         }
 
@@ -202,6 +201,12 @@ namespace HEXLab.Hextrackingconnector
             }
 
             var root = animator.transform;
+            var hipsTransform = animator.GetBoneTransform(HumanBodyBones.Hips);
+            hasRestHipsRootPosition = hipsTransform != null;
+            restHipsRootPosition = hasRestHipsRootPosition
+                ? root.InverseTransformPoint(hipsTransform.position)
+                : Vector3.zero;
+
             foreach (var joint in UnityHumanoidControlSkeleton.Joints)
             {
                 if (!UnityHumanoidControlSkeleton.TryGetHumanBodyBone(joint, out var bone))
@@ -220,22 +225,13 @@ namespace HEXLab.Hextrackingconnector
                     Joint = joint,
                     Bone = bone,
                     Transform = boneTransform,
-                    RestWorldRotation = boneTransform.rotation,
+                    RestRootRotation = Quaternion.Inverse(root.rotation) * boneTransform.rotation,
                 };
 
-                if (TryGetChildJoint(joint, out var childJoint) &&
-                    UnityHumanoidControlSkeleton.TryGetHumanBodyBone(childJoint, out var childBone))
+                if (TryGetRestDirection(root, boneTransform, joint, out var restRootDirection))
                 {
-                    var childTransform = animator.GetBoneTransform(childBone);
-                    if (childTransform != null)
-                    {
-                        var direction = childTransform.position - boneTransform.position;
-                        if (direction.sqrMagnitude > 0.0001f)
-                        {
-                            binding.RestRootDirection = root.InverseTransformDirection(direction).normalized;
-                            binding.HasRestDirection = true;
-                        }
-                    }
+                    binding.RestRootDirection = restRootDirection;
+                    binding.HasRestDirection = true;
                 }
 
                 bindings.Add(binding);
@@ -260,100 +256,155 @@ namespace HEXLab.Hextrackingconnector
                 this);
         }
 
-        private static bool TryGetChildJoint(SkeletonJointId joint, out SkeletonJointId child)
+        private bool TryGetRestDirection(
+            Transform root,
+            Transform boneTransform,
+            SkeletonJointId joint,
+            out Vector3 restRootDirection)
+        {
+            foreach (var childJoint in GetChildJointCandidates(joint))
+            {
+                if (!UnityHumanoidControlSkeleton.TryGetHumanBodyBone(childJoint, out var childBone))
+                {
+                    continue;
+                }
+
+                var childTransform = animator.GetBoneTransform(childBone);
+                if (childTransform == null)
+                {
+                    continue;
+                }
+
+                var direction = childTransform.position - boneTransform.position;
+                if (direction.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                restRootDirection = root.InverseTransformDirection(direction).normalized;
+                return true;
+            }
+
+            restRootDirection = default;
+            return false;
+        }
+
+        private static IEnumerable<SkeletonJointId> GetChildJointCandidates(SkeletonJointId joint)
         {
             if (joint == UnityHumanoidControlSkeleton.Hips)
             {
-                child = UnityHumanoidControlSkeleton.Spine;
-                return true;
+                yield return UnityHumanoidControlSkeleton.Spine;
+                yield return UnityHumanoidControlSkeleton.Chest;
+                yield return UnityHumanoidControlSkeleton.UpperChest;
+                yield return UnityHumanoidControlSkeleton.Neck;
+                yield return UnityHumanoidControlSkeleton.Head;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.Spine)
+            else if (joint == UnityHumanoidControlSkeleton.Spine)
             {
-                child = UnityHumanoidControlSkeleton.Chest;
-                return true;
+                yield return UnityHumanoidControlSkeleton.Chest;
+                yield return UnityHumanoidControlSkeleton.UpperChest;
+                yield return UnityHumanoidControlSkeleton.Neck;
+                yield return UnityHumanoidControlSkeleton.Head;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.Chest)
+            else if (joint == UnityHumanoidControlSkeleton.Chest)
             {
-                child = UnityHumanoidControlSkeleton.UpperChest;
-                return true;
+                yield return UnityHumanoidControlSkeleton.UpperChest;
+                yield return UnityHumanoidControlSkeleton.Neck;
+                yield return UnityHumanoidControlSkeleton.Head;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.UpperChest)
+            else if (joint == UnityHumanoidControlSkeleton.UpperChest)
             {
-                child = UnityHumanoidControlSkeleton.Neck;
-                return true;
+                yield return UnityHumanoidControlSkeleton.Neck;
+                yield return UnityHumanoidControlSkeleton.Head;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.Neck)
+            else if (joint == UnityHumanoidControlSkeleton.Neck)
             {
-                child = UnityHumanoidControlSkeleton.Head;
-                return true;
+                yield return UnityHumanoidControlSkeleton.Head;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.LeftUpperArm)
+            else if (joint == UnityHumanoidControlSkeleton.LeftUpperArm)
             {
-                child = UnityHumanoidControlSkeleton.LeftLowerArm;
-                return true;
+                yield return UnityHumanoidControlSkeleton.LeftLowerArm;
+                yield return UnityHumanoidControlSkeleton.LeftHand;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.LeftLowerArm)
+            else if (joint == UnityHumanoidControlSkeleton.LeftLowerArm)
             {
-                child = UnityHumanoidControlSkeleton.LeftHand;
-                return true;
+                yield return UnityHumanoidControlSkeleton.LeftHand;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.RightUpperArm)
+            else if (joint == UnityHumanoidControlSkeleton.RightUpperArm)
             {
-                child = UnityHumanoidControlSkeleton.RightLowerArm;
-                return true;
+                yield return UnityHumanoidControlSkeleton.RightLowerArm;
+                yield return UnityHumanoidControlSkeleton.RightHand;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.RightLowerArm)
+            else if (joint == UnityHumanoidControlSkeleton.RightLowerArm)
             {
-                child = UnityHumanoidControlSkeleton.RightHand;
-                return true;
+                yield return UnityHumanoidControlSkeleton.RightHand;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.LeftUpperLeg)
+            else if (joint == UnityHumanoidControlSkeleton.LeftUpperLeg)
             {
-                child = UnityHumanoidControlSkeleton.LeftLowerLeg;
-                return true;
+                yield return UnityHumanoidControlSkeleton.LeftLowerLeg;
+                yield return UnityHumanoidControlSkeleton.LeftFoot;
+                yield return UnityHumanoidControlSkeleton.LeftToes;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.LeftLowerLeg)
+            else if (joint == UnityHumanoidControlSkeleton.LeftLowerLeg)
             {
-                child = UnityHumanoidControlSkeleton.LeftFoot;
-                return true;
+                yield return UnityHumanoidControlSkeleton.LeftFoot;
+                yield return UnityHumanoidControlSkeleton.LeftToes;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.LeftFoot)
+            else if (joint == UnityHumanoidControlSkeleton.LeftFoot)
             {
-                child = UnityHumanoidControlSkeleton.LeftToes;
-                return true;
+                yield return UnityHumanoidControlSkeleton.LeftToes;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.RightUpperLeg)
+            else if (joint == UnityHumanoidControlSkeleton.RightUpperLeg)
             {
-                child = UnityHumanoidControlSkeleton.RightLowerLeg;
-                return true;
+                yield return UnityHumanoidControlSkeleton.RightLowerLeg;
+                yield return UnityHumanoidControlSkeleton.RightFoot;
+                yield return UnityHumanoidControlSkeleton.RightToes;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.RightLowerLeg)
+            else if (joint == UnityHumanoidControlSkeleton.RightLowerLeg)
             {
-                child = UnityHumanoidControlSkeleton.RightFoot;
-                return true;
+                yield return UnityHumanoidControlSkeleton.RightFoot;
+                yield return UnityHumanoidControlSkeleton.RightToes;
             }
-
-            if (joint == UnityHumanoidControlSkeleton.RightFoot)
+            else if (joint == UnityHumanoidControlSkeleton.RightFoot)
             {
-                child = UnityHumanoidControlSkeleton.RightToes;
-                return true;
+                yield return UnityHumanoidControlSkeleton.RightToes;
+            }
+        }
+
+        private static Vector3 CalculateRootLocalPosition(
+            Vector3 initialRootLocalPosition,
+            Quaternion initialRootLocalRotation,
+            Vector3 restHipsRootPosition,
+            Vector3 targetHipsPosition,
+            float positionScale)
+        {
+            return initialRootLocalPosition +
+                   initialRootLocalRotation * ((targetHipsPosition * positionScale) - restHipsRootPosition);
+        }
+
+        private static Quaternion CalculateBoneWorldRotation(
+            Quaternion rootRotation,
+            Quaternion restRootRotation,
+            Vector3 restRootDirection,
+            bool hasRestDirection,
+            Quaternion targetRootRotation)
+        {
+            if (!hasRestDirection)
+            {
+                return rootRotation * targetRootRotation;
             }
 
-            child = default;
-            return false;
+            var targetRootDirection = targetRootRotation * Vector3.up;
+            if (targetRootDirection.sqrMagnitude <= 0.0001f ||
+                restRootDirection.sqrMagnitude <= 0.0001f)
+            {
+                return rootRotation * restRootRotation;
+            }
+
+            var rootDelta = Quaternion.FromToRotation(
+                restRootDirection.normalized,
+                targetRootDirection.normalized);
+            return rootRotation * rootDelta * restRootRotation;
         }
 
         private static bool ShouldDriveRotation(SkeletonJointPose pose)
