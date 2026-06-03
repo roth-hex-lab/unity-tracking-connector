@@ -437,13 +437,8 @@ namespace HEXLab.Hextrackingconnector
             SkeletonJointId joint,
             out Vector3 restRootDirection)
         {
-            foreach (var childJoint in GetChildJointCandidates(joint))
+            foreach (var childBone in GetChildBoneCandidates(joint))
             {
-                if (!UnityHumanoidControlSkeleton.TryGetHumanBodyBone(childJoint, out var childBone))
-                {
-                    continue;
-                }
-
                 var childTransform = animator.GetBoneTransform(childBone);
                 if (childTransform == null)
                 {
@@ -460,8 +455,44 @@ namespace HEXLab.Hextrackingconnector
                 return true;
             }
 
+            if (IsHandJoint(joint) &&
+                TryGetAverageChildTransformDirection(root, boneTransform, out restRootDirection))
+            {
+                return true;
+            }
+
             restRootDirection = default;
             return false;
+        }
+
+        private static bool TryGetAverageChildTransformDirection(
+            Transform root,
+            Transform boneTransform,
+            out Vector3 restRootDirection)
+        {
+            var averageDirection = Vector3.zero;
+            var childCount = 0;
+            for (int i = 0; i < boneTransform.childCount; i++)
+            {
+                var child = boneTransform.GetChild(i);
+                var direction = child.position - boneTransform.position;
+                if (direction.sqrMagnitude <= 0.0001f)
+                {
+                    continue;
+                }
+
+                averageDirection += direction;
+                childCount++;
+            }
+
+            if (childCount == 0 || averageDirection.sqrMagnitude <= 0.0001f)
+            {
+                restRootDirection = default;
+                return false;
+            }
+
+            restRootDirection = root.InverseTransformDirection(averageDirection / childCount).normalized;
+            return true;
         }
 
         private static bool TryCreateReferenceControlRotation(
@@ -488,6 +519,40 @@ namespace HEXLab.Hextrackingconnector
 
             referenceControlRotation = Quaternion.LookRotation(forward.normalized, up);
             return true;
+        }
+
+        private static IEnumerable<HumanBodyBones> GetChildBoneCandidates(SkeletonJointId joint)
+        {
+            foreach (var childJoint in GetChildJointCandidates(joint))
+            {
+                if (UnityHumanoidControlSkeleton.TryGetHumanBodyBone(childJoint, out var childBone))
+                {
+                    yield return childBone;
+                }
+            }
+
+            if (joint == UnityHumanoidControlSkeleton.LeftHand)
+            {
+                yield return HumanBodyBones.LeftMiddleProximal;
+                yield return HumanBodyBones.LeftIndexProximal;
+                yield return HumanBodyBones.LeftRingProximal;
+                yield return HumanBodyBones.LeftLittleProximal;
+                yield return HumanBodyBones.LeftThumbProximal;
+            }
+            else if (joint == UnityHumanoidControlSkeleton.RightHand)
+            {
+                yield return HumanBodyBones.RightMiddleProximal;
+                yield return HumanBodyBones.RightIndexProximal;
+                yield return HumanBodyBones.RightRingProximal;
+                yield return HumanBodyBones.RightLittleProximal;
+                yield return HumanBodyBones.RightThumbProximal;
+            }
+        }
+
+        private static bool IsHandJoint(SkeletonJointId joint)
+        {
+            return joint == UnityHumanoidControlSkeleton.LeftHand ||
+                   joint == UnityHumanoidControlSkeleton.RightHand;
         }
 
         private static IEnumerable<SkeletonJointId> GetChildJointCandidates(SkeletonJointId joint)

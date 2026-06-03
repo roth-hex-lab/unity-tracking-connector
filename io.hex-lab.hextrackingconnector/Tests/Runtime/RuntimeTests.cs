@@ -1319,6 +1319,31 @@ namespace HEXLab.Hextrackingconnector.Tests
                 candidates);
         }
 
+        [Test]
+        public void DirectHumanoidBoneDriverUsesFingerBonesAsHandRestDirectionCandidates()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "GetChildBoneCandidates",
+                BindingFlags.Static | BindingFlags.NonPublic);
+
+            Assert.IsNotNull(method);
+            var candidates = ((IEnumerable<HumanBodyBones>)method.Invoke(null, new object[]
+            {
+                UnityHumanoidControlSkeleton.LeftHand
+            })).ToArray();
+
+            CollectionAssert.AreEqual(
+                new[]
+                {
+                    HumanBodyBones.LeftMiddleProximal,
+                    HumanBodyBones.LeftIndexProximal,
+                    HumanBodyBones.LeftRingProximal,
+                    HumanBodyBones.LeftLittleProximal,
+                    HumanBodyBones.LeftThumbProximal,
+                },
+                candidates);
+        }
+
         private static SkeletonFrame CreateFrame(SkeletonJointId joint, Vector3 position, int sequenceNumber)
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
