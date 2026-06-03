@@ -4,10 +4,33 @@ using UnityEngine;
 
 namespace HEXLab.Hextrackingconnector
 {
+    public enum AvatarFitMode
+    {
+        Off,
+        FitOnce,
+        Continuous,
+    }
+
 #pragma warning disable 0649
     [SkeletonPipelineNode("DirectHumanoidBoneDriver")]
     public class DirectHumanoidBoneDriver : MonoBehaviour
     {
+        private static readonly SkeletonJointId[] AvatarFitFootJoints =
+        {
+            UnityHumanoidControlSkeleton.LeftToes,
+            UnityHumanoidControlSkeleton.RightToes,
+            UnityHumanoidControlSkeleton.LeftFoot,
+            UnityHumanoidControlSkeleton.RightFoot,
+        };
+
+        private static readonly HumanBodyBones[] AvatarFitFootBones =
+        {
+            HumanBodyBones.LeftToes,
+            HumanBodyBones.RightToes,
+            HumanBodyBones.LeftFoot,
+            HumanBodyBones.RightFoot,
+        };
+
         [Header("Source")]
         [SerializeField, SkeletonProvider] private MonoBehaviour skeletonProvider;
         [SerializeField] private bool retargetSourcePose = true;
@@ -18,6 +41,13 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private bool applyRootPosition = true;
         [SerializeField, Min(0.001f)] private float positionScale = 1f;
 
+        [Header("Avatar Fit")]
+        [SerializeField] private AvatarFitMode avatarFitMode = AvatarFitMode.Off;
+        [SerializeField, Min(0.001f)] private float minAvatarFitScale = 0.25f;
+        [SerializeField, Min(0.001f)] private float maxAvatarFitScale = 4f;
+        [Tooltip("Current effective uniform scale applied by Avatar Fit. Edit in Play Mode or set AvatarFitScale from code to override it.")]
+        [SerializeField, Min(0.001f)] private float avatarFitScale = 1f;
+
         private readonly List<BoneBinding> bindings = new List<BoneBinding>();
 
         private ISkeletonProvider activeSkeletonProvider;
@@ -25,8 +55,12 @@ namespace HEXLab.Hextrackingconnector
         private bool hasLatestPose;
         private Vector3 initialRootLocalPosition;
         private Quaternion initialRootLocalRotation;
+        private Vector3 initialRootLocalScale = Vector3.one;
         private Vector3 restHipsRootPosition;
         private bool hasRestHipsRootPosition;
+        private float restAvatarHeight;
+        private bool hasRestAvatarHeight;
+        private bool hasAvatarFit;
         private string lastUnsupportedDefinitionId;
 
         private struct BoneBinding
@@ -62,6 +96,14 @@ namespace HEXLab.Hextrackingconnector
         private void OnValidate()
         {
             positionScale = Mathf.Max(0.001f, positionScale);
+            minAvatarFitScale = Mathf.Max(0.001f, minAvatarFitScale);
+            maxAvatarFitScale = Mathf.Max(minAvatarFitScale, maxAvatarFitScale);
+            avatarFitScale = ClampAvatarFitScale(avatarFitScale, minAvatarFitScale, maxAvatarFitScale);
+
+            if (Application.isPlaying && hasAvatarFit)
+            {
+                ApplyAvatarLocalScale();
+            }
         }
 
         public void ApplyCurrentPose()
@@ -70,6 +112,21 @@ namespace HEXLab.Hextrackingconnector
             {
                 ApplyPose(latestPose);
             }
+        }
+
+        public float AvatarFitScale
+        {
+            get => avatarFitScale;
+            set => SetAvatarFitScale(value);
+        }
+
+        public bool HasAvatarFit => hasAvatarFit;
+
+        public void SetAvatarFitScale(float scale)
+        {
+            avatarFitScale = ClampAvatarFitScale(scale, minAvatarFitScale, maxAvatarFitScale);
+            hasAvatarFit = true;
+            ApplyAvatarLocalScale();
         }
 
         private void ResolveReferences()
@@ -105,6 +162,9 @@ namespace HEXLab.Hextrackingconnector
             initialRootLocalRotation = animator != null
                 ? animator.transform.localRotation
                 : transform.localRotation;
+            initialRootLocalScale = animator != null
+                ? animator.transform.localScale
+                : transform.localScale;
         }
 
         private void Subscribe()
@@ -162,15 +222,19 @@ namespace HEXLab.Hextrackingconnector
             }
 
             var root = animator.transform;
+            ApplyAvatarFit(frame, root);
+
             if (applyRootPosition &&
                 frame.TryGetJoint(UnityHumanoidControlSkeleton.Hips, out var hipsPosition))
             {
                 root.localPosition = CalculateRootLocalPosition(
                     initialRootLocalPosition,
                     initialRootLocalRotation,
+                    initialRootLocalScale,
                     hasRestHipsRootPosition ? restHipsRootPosition : Vector3.zero,
                     hipsPosition,
-                    positionScale);
+                    positionScale,
+                    hasAvatarFit ? avatarFitScale : 1f);
             }
 
             for (int i = 0; i < bindings.Count; i++)
@@ -206,6 +270,9 @@ namespace HEXLab.Hextrackingconnector
             restHipsRootPosition = hasRestHipsRootPosition
                 ? root.InverseTransformPoint(hipsTransform.position)
                 : Vector3.zero;
+            hasRestAvatarHeight = TryCalculateRestAvatarHeight(root, out restAvatarHeight);
+            hasAvatarFit = false;
+            avatarFitScale = 1f;
 
             foreach (var joint in UnityHumanoidControlSkeleton.Joints)
             {
@@ -236,6 +303,102 @@ namespace HEXLab.Hextrackingconnector
 
                 bindings.Add(binding);
             }
+        }
+
+        public void ResetAvatarFit()
+        {
+            hasAvatarFit = false;
+            avatarFitScale = 1f;
+            ApplyAvatarLocalScale();
+        }
+
+        private void ApplyAvatarLocalScale()
+        {
+            if (animator == null)
+            {
+                return;
+            }
+
+            animator.transform.localScale = initialRootLocalScale * avatarFitScale;
+        }
+
+        private void ApplyAvatarFit(SkeletonFrame frame, Transform root)
+        {
+            if (avatarFitMode == AvatarFitMode.Off)
+            {
+                if (hasAvatarFit)
+                {
+                    ResetAvatarFit();
+                }
+
+                return;
+            }
+
+            if (!hasRestAvatarHeight)
+            {
+                return;
+            }
+
+            if (avatarFitMode == AvatarFitMode.FitOnce && hasAvatarFit)
+            {
+                ApplyAvatarLocalScale();
+                return;
+            }
+
+            if (!TryCalculateAvatarFitScale(
+                    frame,
+                    restAvatarHeight,
+                    positionScale,
+                    minAvatarFitScale,
+                    maxAvatarFitScale,
+                    out var calculatedScale))
+            {
+                return;
+            }
+
+            avatarFitScale = calculatedScale;
+            hasAvatarFit = true;
+            ApplyAvatarLocalScale();
+        }
+
+        private bool TryCalculateRestAvatarHeight(Transform root, out float height)
+        {
+            var head = animator.GetBoneTransform(HumanBodyBones.Head);
+            if (head == null || !TryGetLowestRestFootY(root, out var lowestFootY))
+            {
+                height = 0f;
+                return false;
+            }
+
+            var localHeight = root.InverseTransformPoint(head.position).y - lowestFootY;
+            height = localHeight * Mathf.Abs(initialRootLocalScale.y);
+            return height > 0.0001f;
+        }
+
+        private bool TryGetLowestRestFootY(Transform root, out float lowestFootY)
+        {
+            lowestFootY = float.PositiveInfinity;
+            var foundFoot = false;
+
+            for (int i = 0; i < AvatarFitFootBones.Length; i++)
+            {
+                var foot = animator.GetBoneTransform(AvatarFitFootBones[i]);
+                if (foot == null)
+                {
+                    continue;
+                }
+
+                lowestFootY = Mathf.Min(lowestFootY, root.InverseTransformPoint(foot.position).y);
+                foundFoot = true;
+            }
+
+            if (foundFoot)
+            {
+                return true;
+            }
+
+            lowestFootY = 0f;
+            return false;
         }
 
         private void LogUnsupportedPose(SkeletonDefinition definition)
@@ -374,12 +537,100 @@ namespace HEXLab.Hextrackingconnector
         private static Vector3 CalculateRootLocalPosition(
             Vector3 initialRootLocalPosition,
             Quaternion initialRootLocalRotation,
+            Vector3 initialRootLocalScale,
             Vector3 restHipsRootPosition,
             Vector3 targetHipsPosition,
-            float positionScale)
+            float positionScale,
+            float avatarScale)
         {
+            var scaledRestHipsPosition = Vector3.Scale(
+                restHipsRootPosition,
+                initialRootLocalScale * avatarScale);
             return initialRootLocalPosition +
-                   initialRootLocalRotation * ((targetHipsPosition * positionScale) - restHipsRootPosition);
+                   initialRootLocalRotation *
+                   ((targetHipsPosition * positionScale) - scaledRestHipsPosition);
+        }
+
+        private static bool TryCalculateAvatarFitScale(
+            SkeletonFrame frame,
+            float restAvatarHeight,
+            float positionScale,
+            float minScale,
+            float maxScale,
+            out float fitScale)
+        {
+            fitScale = 1f;
+
+            if (restAvatarHeight <= 0.0001f ||
+                positionScale <= 0.0001f ||
+                !TryGetSkeletonHeight(frame, out var skeletonHeight))
+            {
+                return false;
+            }
+
+            var calculatedScale = skeletonHeight * positionScale / restAvatarHeight;
+            if (calculatedScale <= 0.0001f ||
+                float.IsNaN(calculatedScale) ||
+                float.IsInfinity(calculatedScale))
+            {
+                return false;
+            }
+
+            var lowerBound = Mathf.Min(minScale, maxScale);
+            var upperBound = Mathf.Max(minScale, maxScale);
+            fitScale = Mathf.Clamp(calculatedScale, lowerBound, upperBound);
+            return true;
+        }
+
+        private static float ClampAvatarFitScale(float scale, float minScale, float maxScale)
+        {
+            if (float.IsNaN(scale) || float.IsInfinity(scale))
+            {
+                return 1f;
+            }
+
+            var lowerBound = Mathf.Min(minScale, maxScale);
+            var upperBound = Mathf.Max(minScale, maxScale);
+            return Mathf.Clamp(Mathf.Max(0.001f, scale), lowerBound, upperBound);
+        }
+
+        private static bool TryGetSkeletonHeight(SkeletonFrame frame, out float height)
+        {
+            height = 0f;
+
+            if (!frame.TryGetJoint(UnityHumanoidControlSkeleton.Head, out var head) ||
+                !TryGetLowestSkeletonFootY(frame, out var lowestFootY))
+            {
+                return false;
+            }
+
+            height = head.y - lowestFootY;
+            return height > 0.0001f;
+        }
+
+        private static bool TryGetLowestSkeletonFootY(SkeletonFrame frame, out float lowestFootY)
+        {
+            lowestFootY = float.PositiveInfinity;
+            var foundFoot = false;
+
+            for (int i = 0; i < AvatarFitFootJoints.Length; i++)
+            {
+                if (!frame.TryGetJoint(AvatarFitFootJoints[i], out var foot))
+                {
+                    continue;
+                }
+
+                lowestFootY = Mathf.Min(lowestFootY, foot.y);
+                foundFoot = true;
+            }
+
+            if (foundFoot)
+            {
+                return true;
+            }
+
+            lowestFootY = 0f;
+            return false;
         }
 
         private static Quaternion CalculateBoneWorldRotation(

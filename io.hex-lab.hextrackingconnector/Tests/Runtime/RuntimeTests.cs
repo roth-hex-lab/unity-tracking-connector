@@ -1057,14 +1057,154 @@ namespace HEXLab.Hextrackingconnector.Tests
             {
                 initialPosition,
                 initialRotation,
+                Vector3.one,
                 restHipsRootPosition,
                 targetHipsPosition,
+                1f,
                 1f
             });
 
             AssertVectorApproximately(
                 initialPosition + initialRotation * new Vector3(0f, 0.5f, -2f),
                 result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverOffsetsRootByScaledRestHips()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateRootLocalPosition",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var initialPosition = new Vector3(0f, 0f, 0f);
+            var initialRotation = Quaternion.identity;
+            var restHipsRootPosition = new Vector3(0f, 1f, 0f);
+            var targetHipsPosition = new Vector3(0f, 1.5f, 0f);
+
+            Assert.IsNotNull(method);
+            var result = (Vector3)method.Invoke(null, new object[]
+            {
+                initialPosition,
+                initialRotation,
+                Vector3.one,
+                restHipsRootPosition,
+                targetHipsPosition,
+                1f,
+                2f
+            });
+
+            AssertVectorApproximately(new Vector3(0f, -0.5f, 0f), result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverOffsetsRootByInitialAvatarScale()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "CalculateRootLocalPosition",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var initialPosition = new Vector3(0f, 0f, 0f);
+            var initialRotation = Quaternion.identity;
+            var initialScale = new Vector3(1f, 0.5f, 1f);
+            var restHipsRootPosition = new Vector3(0f, 1f, 0f);
+            var targetHipsPosition = new Vector3(0f, 1.5f, 0f);
+
+            Assert.IsNotNull(method);
+            var result = (Vector3)method.Invoke(null, new object[]
+            {
+                initialPosition,
+                initialRotation,
+                initialScale,
+                restHipsRootPosition,
+                targetHipsPosition,
+                1f,
+                2f
+            });
+
+            AssertVectorApproximately(new Vector3(0f, 0.5f, 0f), result);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverCalculatesAvatarFitScaleFromSkeletonHeight()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "TryCalculateAvatarFitScale",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var frame = new SkeletonFrame(
+                new SkeletonPose(
+                    UnityHumanoidControlSkeleton.Definition,
+                    CreateUnityHumanoidPoses(
+                        (UnityHumanoidControlSkeleton.Head,
+                            SkeletonJointPose.FromPosition(
+                                new Vector3(0f, 2.1f, 0f),
+                                1f,
+                                SkeletonDataProvenance.Direct,
+                                "head")),
+                        (UnityHumanoidControlSkeleton.LeftFoot,
+                            SkeletonJointPose.FromPosition(
+                                new Vector3(0f, 0.2f, 0f),
+                                1f,
+                                SkeletonDataProvenance.Direct,
+                                "left-foot")),
+                        (UnityHumanoidControlSkeleton.RightToes,
+                            SkeletonJointPose.FromPosition(
+                                new Vector3(0f, -0.1f, 0f),
+                                1f,
+                                SkeletonDataProvenance.Direct,
+                                "right-toes")))),
+                new SkeletonFrameMetadata(1, 1.0));
+            var args = new object[] { frame, 1.1f, 0.5f, 0.25f, 4f, 0f };
+
+            Assert.IsNotNull(method);
+            Assert.IsTrue((bool)method.Invoke(null, args));
+            Assert.AreEqual(1f, (float)args[5], 0.0001f);
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverRejectsAvatarFitWithoutHeadAndFoot()
+        {
+            var method = typeof(DirectHumanoidBoneDriver).GetMethod(
+                "TryCalculateAvatarFitScale",
+                BindingFlags.Static | BindingFlags.NonPublic);
+            var frame = new SkeletonFrame(
+                new SkeletonPose(
+                    UnityHumanoidControlSkeleton.Definition,
+                    CreateUnityHumanoidPoses(
+                        (UnityHumanoidControlSkeleton.Head,
+                            SkeletonJointPose.FromPosition(
+                                new Vector3(0f, 2.1f, 0f),
+                                1f,
+                                SkeletonDataProvenance.Direct,
+                                "head")))),
+                new SkeletonFrameMetadata(1, 1.0));
+            var args = new object[] { frame, 1.1f, 1f, 0.25f, 4f, 0f };
+
+            Assert.IsNotNull(method);
+            Assert.IsFalse((bool)method.Invoke(null, args));
+        }
+
+        [Test]
+        public void DirectHumanoidBoneDriverExposesAvatarFitScaleForInspectionAndOverrides()
+        {
+            var field = typeof(DirectHumanoidBoneDriver).GetField(
+                "avatarFitScale",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var gameObject = new GameObject("AvatarFitScaleApi");
+
+            try
+            {
+                var driver = gameObject.AddComponent<DirectHumanoidBoneDriver>();
+
+                Assert.IsNotNull(field);
+                Assert.IsTrue(field.GetCustomAttributes(typeof(SerializeField), false).Any());
+
+                driver.AvatarFitScale = 1.5f;
+
+                Assert.AreEqual(1.5f, driver.AvatarFitScale, 0.0001f);
+                Assert.IsTrue(driver.HasAvatarFit);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
         }
 
         [Test]

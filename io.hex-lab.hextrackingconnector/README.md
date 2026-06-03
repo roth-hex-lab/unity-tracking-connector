@@ -40,7 +40,7 @@ For a simple line-art visualization, add the `DebugBody` prefab to the scene. It
 
 To calibrate data for any consumer, put `BodyCalibration` in the skeleton provider pipeline: assign its source provider, then point `BodyDebugVis`, `DirectHumanoidBoneDriver`, or student scripts at the calibration component. `BodyCalibration` republishes calibrated `SkeletonFrame`s, keeps frame metadata and rotation channels intact, and still exposes the older one-shot `Apply(...)` methods for local visualization code.
 
-To drive a humanoid avatar directly, add `DirectHumanoidBoneDriver` to a GameObject with a humanoid `Animator`, then assign an `ISkeletonProvider` such as `BodyCalibration`, `CommServer`, or `SkeletonConverter`. The driver consumes `UnityHumanoidControlSkeleton` frames directly, or can retarget compatible human skeleton poses into that control skeleton as a best-effort pose.
+To drive a humanoid avatar directly, add `DirectHumanoidBoneDriver` to a GameObject with a humanoid `Animator`, then assign an `ISkeletonProvider` such as `BodyCalibration`, `CommServer`, or `SkeletonConverter`. The driver consumes `UnityHumanoidControlSkeleton` frames directly, or can retarget compatible human skeleton poses into that control skeleton as a best-effort pose. Its optional Avatar Fit section can scale the rig once or continuously from the incoming head-to-foot skeleton height while keeping calibration responsible for world-space offsets.
 
 ## Runtime Model
 
