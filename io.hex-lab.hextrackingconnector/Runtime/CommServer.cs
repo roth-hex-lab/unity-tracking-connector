@@ -356,7 +356,7 @@ namespace HEXLab.Hextrackingconnector
             foreach (var landmarkData in landmarks)
             {
                 if (landmarkData == null ||
-                    !mapper.TryMapIndex(landmarkData.index, mirrorMode, out var joint))
+                    !mapper.TryMapIndex(landmarkData.index, out var joint))
                 {
                     continue;
                 }
@@ -380,6 +380,11 @@ namespace HEXLab.Hextrackingconnector
                 ? SkeletonCoordinateSpace.RootRelative
                 : SkeletonCoordinateSpace.World;
             var pose = new SkeletonPose(definition, jointPoses, coordinateSpace);
+            if (mirrorMode == PoseMirrorMode.SwapLeftRight)
+            {
+                pose = SkeletonPoseTransforms.MirrorLeftRight(pose);
+            }
+
             var metadata = new SkeletonFrameMetadata(
                 Interlocked.Increment(ref sequenceNumber),
                 DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() / 1000.0,

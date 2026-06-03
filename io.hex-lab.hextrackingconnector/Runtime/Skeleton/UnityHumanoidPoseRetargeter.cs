@@ -78,7 +78,7 @@ namespace HEXLab.Hextrackingconnector
                         SkeletonDataProvenance.Inferred,
                         "head-pose-provider"));
             }
-            else if (TryCopyPosition(source, HumanPoseSkeleton33.Nose, poses, UnityHumanoidControlSkeleton.Head))
+            else if (TryCopyPosition(source, BodyJoints.Nose, poses, UnityHumanoidControlSkeleton.Head))
             {
                 SetRotation(poses, UnityHumanoidControlSkeleton.Head, bodyRotation, InferredBodyConfidence, "body-basis");
                 hasAnySource = true;
@@ -86,100 +86,100 @@ namespace HEXLab.Hextrackingconnector
 
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.LeftShoulder,
-                HumanPoseSkeleton33.LeftElbow,
+                BodyJoints.LeftShoulder,
+                BodyJoints.LeftElbow,
                 UnityHumanoidControlSkeleton.LeftUpperArm,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.RightShoulder,
-                HumanPoseSkeleton33.RightElbow,
+                BodyJoints.RightShoulder,
+                BodyJoints.RightElbow,
                 UnityHumanoidControlSkeleton.RightUpperArm,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.LeftElbow,
-                HumanPoseSkeleton33.LeftWrist,
+                BodyJoints.LeftElbow,
+                BodyJoints.LeftWrist,
                 UnityHumanoidControlSkeleton.LeftLowerArm,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.RightElbow,
-                HumanPoseSkeleton33.RightWrist,
+                BodyJoints.RightElbow,
+                BodyJoints.RightWrist,
                 UnityHumanoidControlSkeleton.RightLowerArm,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.LeftHip,
-                HumanPoseSkeleton33.LeftKnee,
+                BodyJoints.LeftHip,
+                BodyJoints.LeftKnee,
                 UnityHumanoidControlSkeleton.LeftUpperLeg,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.RightHip,
-                HumanPoseSkeleton33.RightKnee,
+                BodyJoints.RightHip,
+                BodyJoints.RightKnee,
                 UnityHumanoidControlSkeleton.RightUpperLeg,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.LeftKnee,
-                HumanPoseSkeleton33.LeftAnkle,
+                BodyJoints.LeftKnee,
+                BodyJoints.LeftAnkle,
                 UnityHumanoidControlSkeleton.LeftLowerLeg,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetLimb(
                 source,
-                HumanPoseSkeleton33.RightKnee,
-                HumanPoseSkeleton33.RightAnkle,
+                BodyJoints.RightKnee,
+                BodyJoints.RightAnkle,
                 UnityHumanoidControlSkeleton.RightLowerLeg,
                 bodyForward,
                 poses);
 
             hasAnySource |= RetargetFoot(
                 source,
-                HumanPoseSkeleton33.LeftAnkle,
-                HumanPoseSkeleton33.LeftFootIndex,
+                BodyJoints.LeftAnkle,
+                BodyJoints.LeftFootIndex,
                 UnityHumanoidControlSkeleton.LeftFoot,
                 UnityHumanoidControlSkeleton.LeftToes,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetFoot(
                 source,
-                HumanPoseSkeleton33.RightAnkle,
-                HumanPoseSkeleton33.RightFootIndex,
+                BodyJoints.RightAnkle,
+                BodyJoints.RightFootIndex,
                 UnityHumanoidControlSkeleton.RightFoot,
                 UnityHumanoidControlSkeleton.RightToes,
                 bodyForward,
                 poses);
 
-            hasAnySource |= TryCopyPosition(source, HumanPoseSkeleton33.LeftShoulder, poses, UnityHumanoidControlSkeleton.LeftShoulder);
-            hasAnySource |= TryCopyPosition(source, HumanPoseSkeleton33.RightShoulder, poses, UnityHumanoidControlSkeleton.RightShoulder);
+            hasAnySource |= TryCopyPosition(source, BodyJoints.LeftShoulder, poses, UnityHumanoidControlSkeleton.LeftShoulder);
+            hasAnySource |= TryCopyPosition(source, BodyJoints.RightShoulder, poses, UnityHumanoidControlSkeleton.RightShoulder);
             hasAnySource |= RetargetHand(
                 source,
-                HumanPoseSkeleton33.LeftWrist,
-                HumanPoseSkeleton33.LeftIndex,
-                HumanPoseSkeleton33.LeftPinky,
-                HumanPoseSkeleton33.LeftThumb,
+                BodyJoints.LeftWrist,
+                BodyJoints.LeftIndex,
+                BodyJoints.LeftPinky,
+                BodyJoints.LeftThumb,
                 UnityHumanoidControlSkeleton.LeftHand,
                 bodyForward,
                 poses);
             hasAnySource |= RetargetHand(
                 source,
-                HumanPoseSkeleton33.RightWrist,
-                HumanPoseSkeleton33.RightIndex,
-                HumanPoseSkeleton33.RightPinky,
-                HumanPoseSkeleton33.RightThumb,
+                BodyJoints.RightWrist,
+                BodyJoints.RightIndex,
+                BodyJoints.RightPinky,
+                BodyJoints.RightThumb,
                 UnityHumanoidControlSkeleton.RightHand,
                 bodyForward,
                 poses);
-            hasAnySource |= TryCopyPositionIfMissing(source, HumanPoseSkeleton33.LeftWrist, poses, UnityHumanoidControlSkeleton.LeftHand);
-            hasAnySource |= TryCopyPositionIfMissing(source, HumanPoseSkeleton33.RightWrist, poses, UnityHumanoidControlSkeleton.RightHand);
+            hasAnySource |= TryCopyPositionIfMissing(source, BodyJoints.LeftWrist, poses, UnityHumanoidControlSkeleton.LeftHand);
+            hasAnySource |= TryCopyPositionIfMissing(source, BodyJoints.RightWrist, poses, UnityHumanoidControlSkeleton.RightHand);
 
             if (!hasAnySource)
             {
@@ -217,10 +217,10 @@ namespace HEXLab.Hextrackingconnector
             rotation = Quaternion.identity;
             forward = Vector3.forward;
 
-            if (!TryGetMidpoint(source, HumanPoseSkeleton33.LeftHip, HumanPoseSkeleton33.RightHip, out hipCentre) ||
-                !TryGetMidpoint(source, HumanPoseSkeleton33.LeftShoulder, HumanPoseSkeleton33.RightShoulder, out shoulderCentre) ||
-                !source.TryGetJoint(HumanPoseSkeleton33.LeftHip, out var leftHip) ||
-                !source.TryGetJoint(HumanPoseSkeleton33.RightHip, out var rightHip))
+            if (!TryGetMidpoint(source, BodyJoints.LeftHip, BodyJoints.RightHip, out hipCentre) ||
+                !TryGetMidpoint(source, BodyJoints.LeftShoulder, BodyJoints.RightShoulder, out shoulderCentre) ||
+                !source.TryGetJoint(BodyJoints.LeftHip, out var leftHip) ||
+                !source.TryGetJoint(BodyJoints.RightHip, out var rightHip))
             {
                 hipCentre = default;
                 shoulderCentre = default;

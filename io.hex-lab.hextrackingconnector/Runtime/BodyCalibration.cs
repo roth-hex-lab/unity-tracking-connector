@@ -17,12 +17,12 @@ namespace HEXLab.Hextrackingconnector
     {
         private static readonly SkeletonJointId[] GroundJoints =
         {
-            HumanPoseSkeleton33.LeftAnkle,
-            HumanPoseSkeleton33.RightAnkle,
-            HumanPoseSkeleton33.LeftHeel,
-            HumanPoseSkeleton33.RightHeel,
-            HumanPoseSkeleton33.LeftFootIndex,
-            HumanPoseSkeleton33.RightFootIndex,
+            BodyJoints.LeftAnkle,
+            BodyJoints.RightAnkle,
+            BodyJoints.LeftHeel,
+            BodyJoints.RightHeel,
+            BodyJoints.LeftFootIndex,
+            BodyJoints.RightFootIndex,
             UnityHumanoidControlSkeleton.LeftFoot,
             UnityHumanoidControlSkeleton.RightFoot,
             UnityHumanoidControlSkeleton.LeftToes,
@@ -456,8 +456,8 @@ namespace HEXLab.Hextrackingconnector
                     definition,
                     positions,
                     tracked,
-                    HumanPoseSkeleton33.LeftHip,
-                    HumanPoseSkeleton33.RightHip,
+                    BodyJoints.LeftHip,
+                    BodyJoints.RightHip,
                     out hipCentre))
             {
                 return true;

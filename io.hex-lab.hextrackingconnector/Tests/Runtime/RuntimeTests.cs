@@ -41,9 +41,21 @@ namespace HEXLab.Hextrackingconnector.Tests
             Assert.AreEqual("HumanPoseSkeleton33", HumanPoseSkeleton33.Definition.Name);
             Assert.AreEqual(33, HumanPoseSkeleton33.JointCount);
             Assert.AreEqual(HumanPoseSkeleton33.JointCount, HumanPoseSkeleton33.Definition.JointCount);
-            Assert.AreEqual(0, HumanPoseSkeleton33.Definition.IndexOf(SkeletonJoint.Nose));
-            Assert.AreEqual(32, HumanPoseSkeleton33.Definition.IndexOf(SkeletonJoint.RightFootIndex));
-            Assert.IsTrue(HumanPoseSkeleton33.Definition.Contains(SkeletonJoint.LeftShoulder));
+            Assert.AreEqual(0, HumanPoseSkeleton33.Definition.IndexOf(BodyJoints.Nose));
+            Assert.AreEqual(32, HumanPoseSkeleton33.Definition.IndexOf(BodyJoints.RightFootIndex));
+            Assert.IsTrue(HumanPoseSkeleton33.Definition.Contains(BodyJoints.LeftShoulder));
+            Assert.Greater(HumanPoseSkeleton33.Definition.MirrorPairs.Count, 0);
+        }
+
+        [Test]
+        public void BodyJointsAreStandaloneAnatomicalJointIds()
+        {
+            Assert.AreEqual(new SkeletonJointId("LeftWrist"), BodyJoints.LeftWrist);
+            Assert.IsNull(typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.SkeletonJoint"));
+            Assert.IsNull(typeof(HumanPoseSkeleton33).GetField("LeftWrist", BindingFlags.Static | BindingFlags.Public));
+            Assert.IsNull(typeof(CocoPoseSkeleton17).GetField("LeftWrist", BindingFlags.Static | BindingFlags.Public));
+            Assert.IsTrue(HumanPoseSkeleton33.Definition.Contains(BodyJoints.LeftWrist));
+            Assert.IsTrue(CocoPoseSkeleton17.Definition.Contains(BodyJoints.LeftWrist));
         }
 
         [Test]
@@ -212,12 +224,12 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.Nose] = new Vector3(0f, 0f, 1f);
-            positions[(int)SkeletonJoint.RightEar] = new Vector3(1f, 0f, 0f);
-            positions[(int)SkeletonJoint.LeftEar] = new Vector3(-1f, 0f, 0f);
-            tracked[(int)SkeletonJoint.Nose] = true;
-            tracked[(int)SkeletonJoint.RightEar] = true;
-            tracked[(int)SkeletonJoint.LeftEar] = true;
+            positions[HumanPoseIndex(BodyJoints.Nose)] = new Vector3(0f, 0f, 1f);
+            positions[HumanPoseIndex(BodyJoints.RightEar)] = new Vector3(1f, 0f, 0f);
+            positions[HumanPoseIndex(BodyJoints.LeftEar)] = new Vector3(-1f, 0f, 0f);
+            tracked[HumanPoseIndex(BodyJoints.Nose)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightEar)] = true;
+            tracked[HumanPoseIndex(BodyJoints.LeftEar)] = true;
 
             Assert.IsTrue(HumanPoseSkeleton33.Definition.TryGetHeadPose(positions, tracked, out var pose));
             Assert.AreEqual(Vector3.zero, pose.Position);
@@ -230,12 +242,12 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.Nose] = new Vector3(0f, 0f, 1f);
-            positions[(int)SkeletonJoint.RightEar] = new Vector3(1f, 0f, 0f);
-            positions[(int)SkeletonJoint.LeftEar] = new Vector3(-1f, 0f, 0f);
-            tracked[(int)SkeletonJoint.Nose] = true;
-            tracked[(int)SkeletonJoint.RightEar] = true;
-            tracked[(int)SkeletonJoint.LeftEar] = true;
+            positions[HumanPoseIndex(BodyJoints.Nose)] = new Vector3(0f, 0f, 1f);
+            positions[HumanPoseIndex(BodyJoints.RightEar)] = new Vector3(1f, 0f, 0f);
+            positions[HumanPoseIndex(BodyJoints.LeftEar)] = new Vector3(-1f, 0f, 0f);
+            tracked[HumanPoseIndex(BodyJoints.Nose)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightEar)] = true;
+            tracked[HumanPoseIndex(BodyJoints.LeftEar)] = true;
             var frame = new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
                 positions,
@@ -297,8 +309,8 @@ namespace HEXLab.Hextrackingconnector.Tests
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
 
-            positions[(int)SkeletonJoint.LeftWrist] = new Vector3(1f, 2f, 3f);
-            tracked[(int)SkeletonJoint.LeftWrist] = true;
+            positions[HumanPoseIndex(BodyJoints.LeftWrist)] = new Vector3(1f, 2f, 3f);
+            tracked[HumanPoseIndex(BodyJoints.LeftWrist)] = true;
 
             var frame = new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
@@ -308,10 +320,10 @@ namespace HEXLab.Hextrackingconnector.Tests
                 receivedTime: 34.5);
 
             Assert.AreSame(HumanPoseSkeleton33.Definition, frame.Definition);
-            Assert.IsTrue(frame.LeftWrist.IsTracked);
-            Assert.AreEqual(new Vector3(1f, 2f, 3f), frame.LeftWrist.Position);
-            Assert.IsFalse(frame.RightWrist.IsTracked);
-            Assert.IsTrue(frame.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist));
+            Assert.IsTrue(frame[BodyJoints.LeftWrist].IsTracked);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), frame[BodyJoints.LeftWrist].Position);
+            Assert.IsFalse(frame[BodyJoints.RightWrist].IsTracked);
+            Assert.IsTrue(frame.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
             Assert.AreEqual(new Vector3(1f, 2f, 3f), wrist);
             Assert.AreEqual(12, frame.SequenceNumber);
             Assert.AreEqual(34.5, frame.ReceivedTime);
@@ -430,10 +442,10 @@ namespace HEXLab.Hextrackingconnector.Tests
 
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.Nose] = new Vector3(1f, 2f, 3f);
-            tracked[(int)SkeletonJoint.Nose] = true;
-            positions[(int)SkeletonJoint.LeftWrist] = new Vector3(4f, 5f, 6f);
-            tracked[(int)SkeletonJoint.LeftWrist] = true;
+            positions[HumanPoseIndex(BodyJoints.Nose)] = new Vector3(1f, 2f, 3f);
+            tracked[HumanPoseIndex(BodyJoints.Nose)] = true;
+            positions[HumanPoseIndex(BodyJoints.LeftWrist)] = new Vector3(4f, 5f, 6f);
+            tracked[HumanPoseIndex(BodyJoints.LeftWrist)] = true;
 
             var source = new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
@@ -451,11 +463,11 @@ namespace HEXLab.Hextrackingconnector.Tests
             var definition = (SkeletonDefinition)type.GetField("Definition", BindingFlags.Static | BindingFlags.Public).GetValue(null);
             Assert.AreSame(definition, cocoFrame.Definition);
             Assert.AreEqual(17, cocoFrame.Positions.Count);
-            Assert.IsTrue(cocoFrame.Nose.IsTracked);
-            Assert.AreEqual(new Vector3(1f, 2f, 3f), cocoFrame.Nose.Position);
-            Assert.IsTrue(cocoFrame.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist));
+            Assert.IsTrue(cocoFrame[BodyJoints.Nose].IsTracked);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), cocoFrame[BodyJoints.Nose].Position);
+            Assert.IsTrue(cocoFrame.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
             Assert.AreEqual(new Vector3(4f, 5f, 6f), wrist);
-            Assert.IsFalse(cocoFrame.LeftPinky.IsTracked);
+            Assert.IsFalse(cocoFrame[BodyJoints.LeftPinky].IsTracked);
             Assert.AreEqual(7, cocoFrame.SequenceNumber);
             Assert.AreEqual(8.5, cocoFrame.ReceivedTime);
         }
@@ -465,8 +477,8 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.Nose] = new Vector3(1f, 2f, 3f);
-            tracked[(int)SkeletonJoint.Nose] = true;
+            positions[HumanPoseIndex(BodyJoints.Nose)] = new Vector3(1f, 2f, 3f);
+            tracked[HumanPoseIndex(BodyJoints.Nose)] = true;
             var source = new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
                 positions,
@@ -484,8 +496,8 @@ namespace HEXLab.Hextrackingconnector.Tests
 
             var converted = (SkeletonFrame)args[1];
             Assert.AreSame(CocoPoseSkeleton17.Definition, converted.Definition);
-            Assert.IsTrue(converted.Nose.IsTracked);
-            Assert.AreEqual(new Vector3(1f, 2f, 3f), converted.Nose.Position);
+            Assert.IsTrue(converted[BodyJoints.Nose].IsTracked);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), converted[BodyJoints.Nose].Position);
         }
 
         [Test]
@@ -545,8 +557,79 @@ namespace HEXLab.Hextrackingconnector.Tests
                 "student.test.skeleton",
                 out var resolvedMapper));
             Assert.AreSame(mapper, resolvedMapper);
-            Assert.IsTrue(resolvedMapper.TryMapIndex(0, PoseMirrorMode.None, out var joint));
+            Assert.IsTrue(resolvedMapper.TryMapIndex(0, out var joint));
             Assert.AreEqual(new SkeletonJointId("StudentJoint"), joint);
+        }
+
+        [Test]
+        public void WireMappersDoNotOwnMirrorMode()
+        {
+            var method = typeof(IWireSkeletonMapper).GetMethod(nameof(IWireSkeletonMapper.TryMapIndex));
+
+            Assert.IsNotNull(method);
+            Assert.IsFalse(method.GetParameters().Any(parameter => parameter.ParameterType == typeof(PoseMirrorMode)));
+        }
+
+        [Test]
+        public void SkeletonPoseMirrorReflectsPositionsAndSwapsConfiguredPairs()
+        {
+            var left = new SkeletonJointId("LeftTest");
+            var right = new SkeletonJointId("RightTest");
+            var centre = new SkeletonJointId("CentreTest");
+            var definition = new SkeletonDefinition(
+                "test.mirror-pairs",
+                "Mirror Pairs",
+                new[] { left, right, centre },
+                mirrorPairs: new[] { new SkeletonJointPair(left, right) });
+            var pose = new SkeletonPose(
+                definition,
+                new[]
+                {
+                    SkeletonJointPose.FromPosition(new Vector3(-1f, 2f, 3f)),
+                    SkeletonJointPose.FromPosition(new Vector3(4f, 5f, 6f)),
+                    SkeletonJointPose.FromPosition(new Vector3(0.5f, 7f, 8f)),
+                },
+                SkeletonCoordinateSpace.World);
+
+            var mirrored = SkeletonPoseTransforms.MirrorLeftRight(pose);
+
+            Assert.AreEqual(SkeletonCoordinateSpace.World, mirrored.CoordinateSpace);
+            Assert.IsTrue(mirrored.TryGetJoint(left, out var mirroredLeft));
+            Assert.IsTrue(mirrored.TryGetJoint(right, out var mirroredRight));
+            Assert.IsTrue(mirrored.TryGetJoint(centre, out var mirroredCentre));
+            Assert.AreEqual(new Vector3(-4f, 5f, 6f), mirroredLeft);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), mirroredRight);
+            Assert.AreEqual(new Vector3(-0.5f, 7f, 8f), mirroredCentre);
+        }
+
+        [Test]
+        public void CommServerMirrorReflectsParsedPositionsAndSwapsBodyPairs()
+        {
+            var server = (CommServer)FormatterServices.GetUninitializedObject(typeof(CommServer));
+            SetPrivateField(server, "inputSkeleton", InputSkeletonSelection.MediaPipePose33);
+            SetPrivateField(server, "coordinateSource", PoseCoordinateSource.Free);
+            SetPrivateField(server, "mirrorMode", PoseMirrorMode.SwapLeftRight);
+            var method = typeof(CommServer).GetMethod(
+                "TryParseSkeletonFrame",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var json =
+                "{\"skeleton_id\":\"mediapipe.pose.33\",\"free\":[" +
+                "{\"index\":0,\"x\":0.25,\"y\":1,\"z\":2}," +
+                "{\"index\":15,\"x\":-1,\"y\":2,\"z\":3}," +
+                "{\"index\":16,\"x\":2,\"y\":5,\"z\":6}]," +
+                "\"anchored\":[]}";
+            var args = new object[] { json, default(SkeletonFrame) };
+
+            Assert.IsNotNull(method);
+            Assert.IsTrue((bool)method.Invoke(server, args));
+            var frame = (SkeletonFrame)args[1];
+
+            Assert.IsTrue(frame.TryGetJoint(BodyJoints.LeftWrist, out var leftWrist));
+            Assert.IsTrue(frame.TryGetJoint(BodyJoints.RightWrist, out var rightWrist));
+            Assert.IsTrue(frame.TryGetJoint(BodyJoints.Nose, out var nose));
+            Assert.AreEqual(new Vector3(-2f, 5f, 6f), leftWrist);
+            Assert.AreEqual(new Vector3(1f, 2f, 3f), rightWrist);
+            Assert.AreEqual(new Vector3(-0.25f, 1f, 2f), nose);
         }
 
         [Test]
@@ -593,13 +676,13 @@ namespace HEXLab.Hextrackingconnector.Tests
         public void MovingAverageSmootherAveragesTrackedJointsAcrossWindow()
         {
             var smoother = new MovingAveragePoseSmoother(windowSize: 2);
-            var first = CreateFrame(SkeletonJoint.LeftWrist, new Vector3(0f, 0f, 0f), 1);
-            var second = CreateFrame(SkeletonJoint.LeftWrist, new Vector3(2f, 4f, 6f), 2);
+            var first = CreateFrame(BodyJoints.LeftWrist, new Vector3(0f, 0f, 0f), 1);
+            var second = CreateFrame(BodyJoints.LeftWrist, new Vector3(2f, 4f, 6f), 2);
 
             smoother.Smooth(first);
             var smoothed = smoother.Smooth(second);
 
-            Assert.IsTrue(smoothed.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist));
+            Assert.IsTrue(smoothed.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
             Assert.AreEqual(new Vector3(1f, 2f, 3f), wrist);
             Assert.AreEqual(2, smoothed.SequenceNumber);
         }
@@ -609,8 +692,8 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var smoother = new MovingAveragePoseSmoother(windowSize: 3);
 
-            smoother.Smooth(CreateFrame(SkeletonJoint.LeftAnkle, Vector3.zero, 1));
-            var smoothed = smoother.Smooth(CreateFrame(SkeletonJoint.LeftAnkle, Vector3.one, 2));
+            smoother.Smooth(CreateFrame(BodyJoints.LeftAnkle, Vector3.zero, 1));
+            var smoothed = smoother.Smooth(CreateFrame(BodyJoints.LeftAnkle, Vector3.one, 2));
 
             Assert.AreSame(HumanPoseSkeleton33.Definition, smoothed.Definition);
             Assert.AreEqual(2, smoothed.SequenceNumber);
@@ -624,13 +707,13 @@ namespace HEXLab.Hextrackingconnector.Tests
             Assert.IsNotNull(cocoType);
 
             var smoother = new MovingAveragePoseSmoother(windowSize: 2);
-            smoother.Smooth(CreateFrame(SkeletonJoint.Nose, Vector3.zero, 1));
+            smoother.Smooth(CreateFrame(BodyJoints.Nose, Vector3.zero, 1));
 
             var definition = (SkeletonDefinition)cocoType.GetField("Definition", BindingFlags.Static | BindingFlags.Public).GetValue(null);
             var positions = new Vector3[definition.JointCount];
             var tracked = new bool[definition.JointCount];
-            positions[definition.IndexOf(SkeletonJoint.Nose)] = Vector3.one * 10f;
-            tracked[definition.IndexOf(SkeletonJoint.Nose)] = true;
+            positions[definition.IndexOf(BodyJoints.Nose)] = Vector3.one * 10f;
+            tracked[definition.IndexOf(BodyJoints.Nose)] = true;
 
             var smoothed = smoother.Smooth(new SkeletonFrame(
                 definition,
@@ -639,7 +722,7 @@ namespace HEXLab.Hextrackingconnector.Tests
                 sequenceNumber: 2,
                 receivedTime: 2.0));
 
-            Assert.IsTrue(smoothed.TryGetJoint(SkeletonJoint.Nose, out var nose));
+            Assert.IsTrue(smoothed.TryGetJoint(BodyJoints.Nose, out var nose));
             Assert.AreEqual(Vector3.one * 10f, nose);
         }
 
@@ -683,13 +766,13 @@ namespace HEXLab.Hextrackingconnector.Tests
             try
             {
                 gameObject.SetActive(true);
-                source.Publish(CreateFrame(SkeletonJoint.LeftWrist, Vector3.zero, 1));
-                source.Publish(CreateFrame(SkeletonJoint.LeftWrist, new Vector3(2f, 4f, 6f), 2));
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.zero, 1));
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, new Vector3(2f, 4f, 6f), 2));
 
                 Assert.AreEqual(2, receivedCount);
                 Assert.IsTrue(((ISkeletonProvider)smoothing).TryGetLatestPose(out var latest));
                 Assert.AreEqual(received.SequenceNumber, latest.SequenceNumber);
-                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist));
+                Assert.IsTrue(received.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
                 Assert.AreEqual(new Vector3(1f, 2f, 3f), wrist);
             }
             finally
@@ -744,8 +827,8 @@ namespace HEXLab.Hextrackingconnector.Tests
                 Assert.IsTrue(calibration.HasCalibration);
                 Assert.IsTrue(((ISkeletonProvider)calibration).TryGetLatestPose(out var latest));
                 Assert.AreEqual(received.SequenceNumber, latest.SequenceNumber);
-                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.LeftHip, out var leftHip));
-                Assert.IsTrue(received.TryGetJoint(SkeletonJoint.RightHip, out var rightHip));
+                Assert.IsTrue(received.TryGetJoint(BodyJoints.LeftHip, out var leftHip));
+                Assert.IsTrue(received.TryGetJoint(BodyJoints.RightHip, out var rightHip));
                 Assert.AreEqual(Vector3.zero, leftHip + rightHip);
             }
             finally
@@ -798,14 +881,14 @@ namespace HEXLab.Hextrackingconnector.Tests
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
             var calibrated = new Vector3[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.LeftHip] = new Vector3(-1f, 2f, 3f);
-            positions[(int)SkeletonJoint.RightHip] = new Vector3(3f, 4f, 5f);
-            tracked[(int)SkeletonJoint.LeftHip] = true;
-            tracked[(int)SkeletonJoint.RightHip] = true;
+            positions[HumanPoseIndex(BodyJoints.LeftHip)] = new Vector3(-1f, 2f, 3f);
+            positions[HumanPoseIndex(BodyJoints.RightHip)] = new Vector3(3f, 4f, 5f);
+            tracked[HumanPoseIndex(BodyJoints.LeftHip)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightHip)] = true;
 
             calibration.Apply(positions, tracked, calibrated);
 
-            Assert.AreEqual(Vector3.zero, calibrated[(int)SkeletonJoint.LeftHip] + calibrated[(int)SkeletonJoint.RightHip]);
+            Assert.AreEqual(Vector3.zero, calibrated[HumanPoseIndex(BodyJoints.LeftHip)] + calibrated[HumanPoseIndex(BodyJoints.RightHip)]);
             Assert.IsTrue(calibration.HasCalibration);
         }
 
@@ -814,10 +897,10 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.LeftHip] = new Vector3(-1f, 2f, 3f);
-            positions[(int)SkeletonJoint.RightHip] = new Vector3(3f, 4f, 5f);
-            tracked[(int)SkeletonJoint.LeftHip] = true;
-            tracked[(int)SkeletonJoint.RightHip] = true;
+            positions[HumanPoseIndex(BodyJoints.LeftHip)] = new Vector3(-1f, 2f, 3f);
+            positions[HumanPoseIndex(BodyJoints.RightHip)] = new Vector3(3f, 4f, 5f);
+            tracked[HumanPoseIndex(BodyJoints.LeftHip)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightHip)] = true;
 
             var offset = BodyCalibration.CalculateOffset(
                 positions,
@@ -833,14 +916,14 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)SkeletonJoint.LeftHip] = new Vector3(-1f, 2f, 2f);
-            positions[(int)SkeletonJoint.RightHip] = new Vector3(3f, 2f, 4f);
-            positions[(int)SkeletonJoint.LeftAnkle] = new Vector3(-1f, -0.25f, 2f);
-            positions[(int)SkeletonJoint.RightFootIndex] = new Vector3(3f, -0.75f, 4f);
-            tracked[(int)SkeletonJoint.LeftHip] = true;
-            tracked[(int)SkeletonJoint.RightHip] = true;
-            tracked[(int)SkeletonJoint.LeftAnkle] = true;
-            tracked[(int)SkeletonJoint.RightFootIndex] = true;
+            positions[HumanPoseIndex(BodyJoints.LeftHip)] = new Vector3(-1f, 2f, 2f);
+            positions[HumanPoseIndex(BodyJoints.RightHip)] = new Vector3(3f, 2f, 4f);
+            positions[HumanPoseIndex(BodyJoints.LeftAnkle)] = new Vector3(-1f, -0.25f, 2f);
+            positions[HumanPoseIndex(BodyJoints.RightFootIndex)] = new Vector3(3f, -0.75f, 4f);
+            tracked[HumanPoseIndex(BodyJoints.LeftHip)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightHip)] = true;
+            tracked[HumanPoseIndex(BodyJoints.LeftAnkle)] = true;
+            tracked[HumanPoseIndex(BodyJoints.RightFootIndex)] = true;
 
             var offset = BodyCalibration.CalculateOffset(
                 positions,
@@ -921,9 +1004,9 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             var source = CreateStandingHumanPoseFrame();
             var poses = source.CopyJointPoses();
-            SetHumanPose(poses, SkeletonJoint.LeftIndex, new Vector3(-1.75f, 1.95f, 0f));
-            SetHumanPose(poses, SkeletonJoint.LeftPinky, new Vector3(-2.15f, 1.85f, 0f));
-            SetHumanPose(poses, SkeletonJoint.LeftThumb, new Vector3(-1.95f, 1.65f, 0.35f));
+            SetHumanPose(poses, BodyJoints.LeftIndex, new Vector3(-1.75f, 1.95f, 0f));
+            SetHumanPose(poses, BodyJoints.LeftPinky, new Vector3(-2.15f, 1.85f, 0f));
+            SetHumanPose(poses, BodyJoints.LeftThumb, new Vector3(-1.95f, 1.65f, 0.35f));
             source = new SkeletonFrame(
                 new SkeletonPose(HumanPoseSkeleton33.Definition, poses),
                 source.Metadata);
@@ -958,12 +1041,12 @@ namespace HEXLab.Hextrackingconnector.Tests
             }));
         }
 
-        private static SkeletonFrame CreateFrame(SkeletonJoint joint, Vector3 position, int sequenceNumber)
+        private static SkeletonFrame CreateFrame(SkeletonJointId joint, Vector3 position, int sequenceNumber)
         {
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
-            positions[(int)joint] = position;
-            tracked[(int)joint] = true;
+            positions[HumanPoseIndex(joint)] = position;
+            tracked[HumanPoseIndex(joint)] = true;
             return new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
                 positions,
@@ -977,23 +1060,23 @@ namespace HEXLab.Hextrackingconnector.Tests
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
 
-            SetTracked(SkeletonJoint.LeftHip, new Vector3(-0.5f, 0f, 0f));
-            SetTracked(SkeletonJoint.RightHip, new Vector3(0.5f, 0f, 0f));
-            SetTracked(SkeletonJoint.LeftShoulder, new Vector3(-0.75f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.RightShoulder, new Vector3(0.75f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.LeftElbow, new Vector3(-1.25f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.RightElbow, new Vector3(1.25f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.LeftWrist, new Vector3(-1.75f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.RightWrist, new Vector3(1.75f, 1.5f, 0f));
-            SetTracked(SkeletonJoint.LeftKnee, new Vector3(-0.5f, -1f, 0f));
-            SetTracked(SkeletonJoint.RightKnee, new Vector3(0.5f, -1f, 0f));
-            SetTracked(SkeletonJoint.LeftAnkle, new Vector3(-0.5f, -2f, 0f));
-            SetTracked(SkeletonJoint.RightAnkle, new Vector3(0.5f, -2f, 0f));
-            SetTracked(SkeletonJoint.LeftFootIndex, new Vector3(-0.5f, -2f, 0.5f));
-            SetTracked(SkeletonJoint.RightFootIndex, new Vector3(0.5f, -2f, 0.5f));
-            SetTracked(SkeletonJoint.Nose, new Vector3(0f, 2.1f, 0.5f));
-            SetTracked(SkeletonJoint.LeftEar, new Vector3(-0.25f, 2f, 0f));
-            SetTracked(SkeletonJoint.RightEar, new Vector3(0.25f, 2f, 0f));
+            SetTracked(BodyJoints.LeftHip, new Vector3(-0.5f, 0f, 0f));
+            SetTracked(BodyJoints.RightHip, new Vector3(0.5f, 0f, 0f));
+            SetTracked(BodyJoints.LeftShoulder, new Vector3(-0.75f, 1.5f, 0f));
+            SetTracked(BodyJoints.RightShoulder, new Vector3(0.75f, 1.5f, 0f));
+            SetTracked(BodyJoints.LeftElbow, new Vector3(-1.25f, 1.5f, 0f));
+            SetTracked(BodyJoints.RightElbow, new Vector3(1.25f, 1.5f, 0f));
+            SetTracked(BodyJoints.LeftWrist, new Vector3(-1.75f, 1.5f, 0f));
+            SetTracked(BodyJoints.RightWrist, new Vector3(1.75f, 1.5f, 0f));
+            SetTracked(BodyJoints.LeftKnee, new Vector3(-0.5f, -1f, 0f));
+            SetTracked(BodyJoints.RightKnee, new Vector3(0.5f, -1f, 0f));
+            SetTracked(BodyJoints.LeftAnkle, new Vector3(-0.5f, -2f, 0f));
+            SetTracked(BodyJoints.RightAnkle, new Vector3(0.5f, -2f, 0f));
+            SetTracked(BodyJoints.LeftFootIndex, new Vector3(-0.5f, -2f, 0.5f));
+            SetTracked(BodyJoints.RightFootIndex, new Vector3(0.5f, -2f, 0.5f));
+            SetTracked(BodyJoints.Nose, new Vector3(0f, 2.1f, 0.5f));
+            SetTracked(BodyJoints.LeftEar, new Vector3(-0.25f, 2f, 0f));
+            SetTracked(BodyJoints.RightEar, new Vector3(0.25f, 2f, 0f));
 
             return new SkeletonFrame(
                 HumanPoseSkeleton33.Definition,
@@ -1002,10 +1085,10 @@ namespace HEXLab.Hextrackingconnector.Tests
                 sequenceNumber: 99,
                 receivedTime: 100.5);
 
-            void SetTracked(SkeletonJoint joint, Vector3 position)
+            void SetTracked(SkeletonJointId joint, Vector3 position)
             {
-                positions[(int)joint] = position;
-                tracked[(int)joint] = true;
+                positions[HumanPoseIndex(joint)] = position;
+                tracked[HumanPoseIndex(joint)] = true;
             }
         }
 
@@ -1025,9 +1108,14 @@ namespace HEXLab.Hextrackingconnector.Tests
             return poses;
         }
 
-        private static void SetHumanPose(SkeletonJointPose[] poses, SkeletonJoint joint, Vector3 position)
+        private static void SetHumanPose(SkeletonJointPose[] poses, SkeletonJointId joint, Vector3 position)
         {
-            poses[(int)joint] = SkeletonJointPose.FromPosition(position, 1f, SkeletonDataProvenance.Direct, joint.ToString());
+            poses[HumanPoseIndex(joint)] = SkeletonJointPose.FromPosition(position, 1f, SkeletonDataProvenance.Direct, joint.ToString());
+        }
+
+        private static int HumanPoseIndex(SkeletonJointId joint)
+        {
+            return HumanPoseSkeleton33.Definition.IndexOf(joint);
         }
 
         private static void AssertProviderFieldHasAttribute(
@@ -1085,7 +1173,7 @@ namespace HEXLab.Hextrackingconnector.Tests
 
             public SkeletonDefinition Definition { get; }
 
-            public bool TryMapIndex(int sourceIndex, PoseMirrorMode mirrorMode, out SkeletonJointId joint)
+            public bool TryMapIndex(int sourceIndex, out SkeletonJointId joint)
             {
                 if (sourceIndex == 0)
                 {

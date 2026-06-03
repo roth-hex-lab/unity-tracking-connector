@@ -215,12 +215,6 @@ namespace HEXLab.Hextrackingconnector
         public IReadOnlyList<Vector3> Positions => positions ?? EmptyPositions;
 
         public SkeletonJointPose this[SkeletonJointId joint] => GetPoint(joint);
-        public SkeletonJointPose this[SkeletonJoint joint] => GetPoint(joint);
-
-        public bool IsTracked(SkeletonJoint joint)
-        {
-            return IsTracked(HumanPoseSkeleton33.ToJointId(joint));
-        }
 
         public bool IsTracked(SkeletonJointId joint)
         {
@@ -230,11 +224,6 @@ namespace HEXLab.Hextrackingconnector
         public bool IsTracked(int index)
         {
             return Definition.IsValidIndex(index) && (positionTracked ?? EmptyTracked)[index];
-        }
-
-        public Vector3 GetJoint(SkeletonJoint joint)
-        {
-            return GetJoint(HumanPoseSkeleton33.ToJointId(joint));
         }
 
         public Vector3 GetJoint(SkeletonJointId joint)
@@ -256,11 +245,6 @@ namespace HEXLab.Hextrackingconnector
             }
 
             return (positions ?? EmptyPositions)[index];
-        }
-
-        public SkeletonJointPose GetPoint(SkeletonJoint joint)
-        {
-            return GetPoint(HumanPoseSkeleton33.ToJointId(joint));
         }
 
         public SkeletonJointPose GetPoint(SkeletonJointId joint)
@@ -287,11 +271,6 @@ namespace HEXLab.Hextrackingconnector
         {
             pose = GetPoint(index);
             return pose.IsAvailable;
-        }
-
-        public bool TryGetJoint(SkeletonJoint joint, out Vector3 position)
-        {
-            return TryGetJoint(HumanPoseSkeleton33.ToJointId(joint), out position);
         }
 
         public bool TryGetJoint(SkeletonJointId joint, out Vector3 position)

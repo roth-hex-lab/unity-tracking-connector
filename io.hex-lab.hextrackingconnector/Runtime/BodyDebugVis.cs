@@ -393,17 +393,17 @@ namespace HEXLab.Hextrackingconnector
 
         private static bool IsFacialJoint(SkeletonJointId joint)
         {
-            return joint == HumanPoseSkeleton33.Nose ||
-                   joint == HumanPoseSkeleton33.LeftEyeInner ||
-                   joint == HumanPoseSkeleton33.LeftEye ||
-                   joint == HumanPoseSkeleton33.LeftEyeOuter ||
-                   joint == HumanPoseSkeleton33.RightEyeInner ||
-                   joint == HumanPoseSkeleton33.RightEye ||
-                   joint == HumanPoseSkeleton33.RightEyeOuter ||
-                   joint == HumanPoseSkeleton33.LeftEar ||
-                   joint == HumanPoseSkeleton33.RightEar ||
-                   joint == HumanPoseSkeleton33.MouthLeft ||
-                   joint == HumanPoseSkeleton33.MouthRight;
+            return joint == BodyJoints.Nose ||
+                   joint == BodyJoints.LeftEyeInner ||
+                   joint == BodyJoints.LeftEye ||
+                   joint == BodyJoints.LeftEyeOuter ||
+                   joint == BodyJoints.RightEyeInner ||
+                   joint == BodyJoints.RightEye ||
+                   joint == BodyJoints.RightEyeOuter ||
+                   joint == BodyJoints.LeftEar ||
+                   joint == BodyJoints.RightEar ||
+                   joint == BodyJoints.MouthLeft ||
+                   joint == BodyJoints.MouthRight;
         }
     }
 #pragma warning restore 0649

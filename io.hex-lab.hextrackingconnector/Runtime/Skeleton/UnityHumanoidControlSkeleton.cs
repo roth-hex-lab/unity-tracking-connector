@@ -65,6 +65,18 @@ namespace HEXLab.Hextrackingconnector
             new SkeletonLineStrip(LeftUpperLeg, Hips, RightUpperLeg),
         };
 
+        private static readonly SkeletonJointPair[] MirrorPairs =
+        {
+            new SkeletonJointPair(LeftShoulder, RightShoulder),
+            new SkeletonJointPair(LeftUpperArm, RightUpperArm),
+            new SkeletonJointPair(LeftLowerArm, RightLowerArm),
+            new SkeletonJointPair(LeftHand, RightHand),
+            new SkeletonJointPair(LeftUpperLeg, RightUpperLeg),
+            new SkeletonJointPair(LeftLowerLeg, RightLowerLeg),
+            new SkeletonJointPair(LeftFoot, RightFoot),
+            new SkeletonJointPair(LeftToes, RightToes),
+        };
+
         private static readonly Dictionary<SkeletonJointId, HumanBodyBones> HumanBodyBoneByJoint =
             new Dictionary<SkeletonJointId, HumanBodyBones>
             {
@@ -99,7 +111,8 @@ namespace HEXLab.Hextrackingconnector
                 "unity.humanoid.control",
                 "Unity Humanoid Control",
                 JointList,
-                DebugLineStrips);
+                DebugLineStrips,
+                mirrorPairs: MirrorPairs);
 
         public static IReadOnlyList<SkeletonJointId> Joints => JointList;
 

@@ -6,53 +6,35 @@ namespace HEXLab.Hextrackingconnector
 {
     public static class CocoPoseSkeleton17
     {
-        public static readonly SkeletonJointId Nose = HumanPoseSkeleton33.Nose;
-        public static readonly SkeletonJointId LeftEye = HumanPoseSkeleton33.LeftEye;
-        public static readonly SkeletonJointId RightEye = HumanPoseSkeleton33.RightEye;
-        public static readonly SkeletonJointId LeftEar = HumanPoseSkeleton33.LeftEar;
-        public static readonly SkeletonJointId RightEar = HumanPoseSkeleton33.RightEar;
-        public static readonly SkeletonJointId LeftShoulder = HumanPoseSkeleton33.LeftShoulder;
-        public static readonly SkeletonJointId RightShoulder = HumanPoseSkeleton33.RightShoulder;
-        public static readonly SkeletonJointId LeftElbow = HumanPoseSkeleton33.LeftElbow;
-        public static readonly SkeletonJointId RightElbow = HumanPoseSkeleton33.RightElbow;
-        public static readonly SkeletonJointId LeftWrist = HumanPoseSkeleton33.LeftWrist;
-        public static readonly SkeletonJointId RightWrist = HumanPoseSkeleton33.RightWrist;
-        public static readonly SkeletonJointId LeftHip = HumanPoseSkeleton33.LeftHip;
-        public static readonly SkeletonJointId RightHip = HumanPoseSkeleton33.RightHip;
-        public static readonly SkeletonJointId LeftKnee = HumanPoseSkeleton33.LeftKnee;
-        public static readonly SkeletonJointId RightKnee = HumanPoseSkeleton33.RightKnee;
-        public static readonly SkeletonJointId LeftAnkle = HumanPoseSkeleton33.LeftAnkle;
-        public static readonly SkeletonJointId RightAnkle = HumanPoseSkeleton33.RightAnkle;
-
         private static readonly SkeletonJointId[] JointList =
         {
-            Nose,
-            LeftEye,
-            RightEye,
-            LeftEar,
-            RightEar,
-            LeftShoulder,
-            RightShoulder,
-            LeftElbow,
-            RightElbow,
-            LeftWrist,
-            RightWrist,
-            LeftHip,
-            RightHip,
-            LeftKnee,
-            RightKnee,
-            LeftAnkle,
-            RightAnkle,
+            BodyJoints.Nose,
+            BodyJoints.LeftEye,
+            BodyJoints.RightEye,
+            BodyJoints.LeftEar,
+            BodyJoints.RightEar,
+            BodyJoints.LeftShoulder,
+            BodyJoints.RightShoulder,
+            BodyJoints.LeftElbow,
+            BodyJoints.RightElbow,
+            BodyJoints.LeftWrist,
+            BodyJoints.RightWrist,
+            BodyJoints.LeftHip,
+            BodyJoints.RightHip,
+            BodyJoints.LeftKnee,
+            BodyJoints.RightKnee,
+            BodyJoints.LeftAnkle,
+            BodyJoints.RightAnkle,
         };
 
         private static readonly SkeletonLineStrip[] DebugLineStrips =
         {
-            new SkeletonLineStrip(RightAnkle, RightKnee, RightHip),
-            new SkeletonLineStrip(LeftAnkle, LeftKnee, LeftHip),
-            new SkeletonLineStrip(RightHip, LeftHip, LeftShoulder, RightShoulder, RightHip),
-            new SkeletonLineStrip(RightShoulder, RightElbow, RightWrist),
-            new SkeletonLineStrip(LeftShoulder, LeftElbow, LeftWrist),
-            new SkeletonLineStrip(RightEar, RightEye, Nose, LeftEye, LeftEar),
+            new SkeletonLineStrip(BodyJoints.RightAnkle, BodyJoints.RightKnee, BodyJoints.RightHip),
+            new SkeletonLineStrip(BodyJoints.LeftAnkle, BodyJoints.LeftKnee, BodyJoints.LeftHip),
+            new SkeletonLineStrip(BodyJoints.RightHip, BodyJoints.LeftHip, BodyJoints.LeftShoulder, BodyJoints.RightShoulder, BodyJoints.RightHip),
+            new SkeletonLineStrip(BodyJoints.RightShoulder, BodyJoints.RightElbow, BodyJoints.RightWrist),
+            new SkeletonLineStrip(BodyJoints.LeftShoulder, BodyJoints.LeftElbow, BodyJoints.LeftWrist),
+            new SkeletonLineStrip(BodyJoints.RightEar, BodyJoints.RightEye, BodyJoints.Nose, BodyJoints.LeftEye, BodyJoints.LeftEar),
         };
 
         public const int JointCount = 17;
@@ -62,7 +44,8 @@ namespace HEXLab.Hextrackingconnector
                 "COCO Body 17",
                 JointList,
                 DebugLineStrips,
-                new NoseEarsHeadPoseProvider(Nose, RightEar, LeftEar));
+                new NoseEarsHeadPoseProvider(BodyJoints.Nose, BodyJoints.RightEar, BodyJoints.LeftEar),
+                BodyJoints.CreateCocoPose17MirrorPairs());
 
         public static IReadOnlyList<SkeletonJointId> Joints => JointList;
 

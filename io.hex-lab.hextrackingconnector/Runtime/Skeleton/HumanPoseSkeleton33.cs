@@ -51,43 +51,6 @@ namespace HEXLab.Hextrackingconnector
         }
     }
 
-    public enum SkeletonJoint
-    {
-        Nose = 0,
-        LeftEyeInner = 1,
-        LeftEye = 2,
-        LeftEyeOuter = 3,
-        RightEyeInner = 4,
-        RightEye = 5,
-        RightEyeOuter = 6,
-        LeftEar = 7,
-        RightEar = 8,
-        MouthLeft = 9,
-        MouthRight = 10,
-        LeftShoulder = 11,
-        RightShoulder = 12,
-        LeftElbow = 13,
-        RightElbow = 14,
-        LeftWrist = 15,
-        RightWrist = 16,
-        LeftPinky = 17,
-        RightPinky = 18,
-        LeftIndex = 19,
-        RightIndex = 20,
-        LeftThumb = 21,
-        RightThumb = 22,
-        LeftHip = 23,
-        RightHip = 24,
-        LeftKnee = 25,
-        RightKnee = 26,
-        LeftAnkle = 27,
-        RightAnkle = 28,
-        LeftHeel = 29,
-        RightHeel = 30,
-        LeftFootIndex = 31,
-        RightFootIndex = 32,
-    }
-
     public sealed class SkeletonLineStrip
     {
         private readonly SkeletonJointId[] joints;
@@ -122,6 +85,18 @@ namespace HEXLab.Hextrackingconnector
                 return joints[index];
             }
         }
+    }
+
+    public readonly struct SkeletonJointPair
+    {
+        public SkeletonJointPair(SkeletonJointId first, SkeletonJointId second)
+        {
+            First = first;
+            Second = second;
+        }
+
+        public SkeletonJointId First { get; }
+        public SkeletonJointId Second { get; }
     }
 
     public readonly struct SkeletonPoint
@@ -166,20 +141,14 @@ namespace HEXLab.Hextrackingconnector
 
         private readonly SkeletonJointId[] joints;
         private readonly SkeletonLineStrip[] debugLineStrips;
+        private readonly SkeletonJointPair[] mirrorPairs;
         private readonly Dictionary<SkeletonJointId, int> jointIndices;
         private readonly ISkeletonHeadPoseProvider headPoseProvider;
 
         public SkeletonDefinition(
             string name,
-            SkeletonJoint[] joints)
-            : this(name, name, ToJointIds(joints), null, null)
-        {
-        }
-
-        public SkeletonDefinition(
-            string name,
             SkeletonJointId[] joints)
-            : this(name, name, joints, null, null)
+            : this(name, name, joints, null, null, null)
         {
         }
 
@@ -188,7 +157,8 @@ namespace HEXLab.Hextrackingconnector
             string name,
             SkeletonJointId[] joints,
             SkeletonLineStrip[] debugLineStrips = null,
-            ISkeletonHeadPoseProvider headPoseProvider = null)
+            ISkeletonHeadPoseProvider headPoseProvider = null,
+            SkeletonJointPair[] mirrorPairs = null)
         {
             if (string.IsNullOrWhiteSpace(id))
             {
@@ -206,8 +176,12 @@ namespace HEXLab.Hextrackingconnector
             this.debugLineStrips = debugLineStrips != null
                 ? (SkeletonLineStrip[])debugLineStrips.Clone()
                 : new SkeletonLineStrip[0];
+            this.mirrorPairs = mirrorPairs != null
+                ? (SkeletonJointPair[])mirrorPairs.Clone()
+                : new SkeletonJointPair[0];
             jointIndices = BuildIndex(this.joints);
             ValidateDebugLineStrips(this.debugLineStrips, jointIndices);
+            ValidateMirrorPairs(this.mirrorPairs, jointIndices);
             this.headPoseProvider = headPoseProvider;
 
             Id = id;
@@ -219,6 +193,7 @@ namespace HEXLab.Hextrackingconnector
         public int JointCount => joints.Length;
         public IReadOnlyList<SkeletonJointId> Joints => joints;
         public IReadOnlyList<SkeletonLineStrip> DebugLineStrips => debugLineStrips;
+        public IReadOnlyList<SkeletonJointPair> MirrorPairs => mirrorPairs;
         public bool HasHeadPose => headPoseProvider != null;
 
         public bool IsValidIndex(int index)
@@ -231,19 +206,9 @@ namespace HEXLab.Hextrackingconnector
             return jointIndices.ContainsKey(joint);
         }
 
-        public bool Contains(SkeletonJoint joint)
-        {
-            return Contains(HumanPoseSkeleton33.ToJointId(joint));
-        }
-
         public int IndexOf(SkeletonJointId joint)
         {
             return jointIndices.TryGetValue(joint, out var index) ? index : -1;
-        }
-
-        public int IndexOf(SkeletonJoint joint)
-        {
-            return IndexOf(HumanPoseSkeleton33.ToJointId(joint));
         }
 
         public SkeletonJointId JointAt(int index)
@@ -290,22 +255,6 @@ namespace HEXLab.Hextrackingconnector
             return indices;
         }
 
-        private static SkeletonJointId[] ToJointIds(SkeletonJoint[] joints)
-        {
-            if (joints == null)
-            {
-                throw new ArgumentNullException(nameof(joints));
-            }
-
-            var jointIds = new SkeletonJointId[joints.Length];
-            for (int i = 0; i < joints.Length; i++)
-            {
-                jointIds[i] = HumanPoseSkeleton33.ToJointId(joints[i]);
-            }
-
-            return jointIds;
-        }
-
         private static void ValidateDebugLineStrips(
             SkeletonLineStrip[] lineStrips,
             Dictionary<SkeletonJointId, int> indices)
@@ -326,94 +275,43 @@ namespace HEXLab.Hextrackingconnector
                 }
             }
         }
+
+        private static void ValidateMirrorPairs(
+            SkeletonJointPair[] pairs,
+            Dictionary<SkeletonJointId, int> indices)
+        {
+            foreach (var pair in pairs)
+            {
+                if (!indices.ContainsKey(pair.First))
+                {
+                    throw new ArgumentException($"Mirror pair references unknown joint '{pair.First}'.", nameof(pairs));
+                }
+
+                if (!indices.ContainsKey(pair.Second))
+                {
+                    throw new ArgumentException($"Mirror pair references unknown joint '{pair.Second}'.", nameof(pairs));
+                }
+            }
+        }
     }
 
     public static class HumanPoseSkeleton33
     {
-        public static readonly SkeletonJointId Nose = new SkeletonJointId(nameof(SkeletonJoint.Nose));
-        public static readonly SkeletonJointId LeftEyeInner = new SkeletonJointId(nameof(SkeletonJoint.LeftEyeInner));
-        public static readonly SkeletonJointId LeftEye = new SkeletonJointId(nameof(SkeletonJoint.LeftEye));
-        public static readonly SkeletonJointId LeftEyeOuter = new SkeletonJointId(nameof(SkeletonJoint.LeftEyeOuter));
-        public static readonly SkeletonJointId RightEyeInner = new SkeletonJointId(nameof(SkeletonJoint.RightEyeInner));
-        public static readonly SkeletonJointId RightEye = new SkeletonJointId(nameof(SkeletonJoint.RightEye));
-        public static readonly SkeletonJointId RightEyeOuter = new SkeletonJointId(nameof(SkeletonJoint.RightEyeOuter));
-        public static readonly SkeletonJointId LeftEar = new SkeletonJointId(nameof(SkeletonJoint.LeftEar));
-        public static readonly SkeletonJointId RightEar = new SkeletonJointId(nameof(SkeletonJoint.RightEar));
-        public static readonly SkeletonJointId MouthLeft = new SkeletonJointId(nameof(SkeletonJoint.MouthLeft));
-        public static readonly SkeletonJointId MouthRight = new SkeletonJointId(nameof(SkeletonJoint.MouthRight));
-        public static readonly SkeletonJointId LeftShoulder = new SkeletonJointId(nameof(SkeletonJoint.LeftShoulder));
-        public static readonly SkeletonJointId RightShoulder = new SkeletonJointId(nameof(SkeletonJoint.RightShoulder));
-        public static readonly SkeletonJointId LeftElbow = new SkeletonJointId(nameof(SkeletonJoint.LeftElbow));
-        public static readonly SkeletonJointId RightElbow = new SkeletonJointId(nameof(SkeletonJoint.RightElbow));
-        public static readonly SkeletonJointId LeftWrist = new SkeletonJointId(nameof(SkeletonJoint.LeftWrist));
-        public static readonly SkeletonJointId RightWrist = new SkeletonJointId(nameof(SkeletonJoint.RightWrist));
-        public static readonly SkeletonJointId LeftPinky = new SkeletonJointId(nameof(SkeletonJoint.LeftPinky));
-        public static readonly SkeletonJointId RightPinky = new SkeletonJointId(nameof(SkeletonJoint.RightPinky));
-        public static readonly SkeletonJointId LeftIndex = new SkeletonJointId(nameof(SkeletonJoint.LeftIndex));
-        public static readonly SkeletonJointId RightIndex = new SkeletonJointId(nameof(SkeletonJoint.RightIndex));
-        public static readonly SkeletonJointId LeftThumb = new SkeletonJointId(nameof(SkeletonJoint.LeftThumb));
-        public static readonly SkeletonJointId RightThumb = new SkeletonJointId(nameof(SkeletonJoint.RightThumb));
-        public static readonly SkeletonJointId LeftHip = new SkeletonJointId(nameof(SkeletonJoint.LeftHip));
-        public static readonly SkeletonJointId RightHip = new SkeletonJointId(nameof(SkeletonJoint.RightHip));
-        public static readonly SkeletonJointId LeftKnee = new SkeletonJointId(nameof(SkeletonJoint.LeftKnee));
-        public static readonly SkeletonJointId RightKnee = new SkeletonJointId(nameof(SkeletonJoint.RightKnee));
-        public static readonly SkeletonJointId LeftAnkle = new SkeletonJointId(nameof(SkeletonJoint.LeftAnkle));
-        public static readonly SkeletonJointId RightAnkle = new SkeletonJointId(nameof(SkeletonJoint.RightAnkle));
-        public static readonly SkeletonJointId LeftHeel = new SkeletonJointId(nameof(SkeletonJoint.LeftHeel));
-        public static readonly SkeletonJointId RightHeel = new SkeletonJointId(nameof(SkeletonJoint.RightHeel));
-        public static readonly SkeletonJointId LeftFootIndex = new SkeletonJointId(nameof(SkeletonJoint.LeftFootIndex));
-        public static readonly SkeletonJointId RightFootIndex = new SkeletonJointId(nameof(SkeletonJoint.RightFootIndex));
-
-        private static readonly SkeletonJointId[] JointList =
-        {
-            Nose,
-            LeftEyeInner,
-            LeftEye,
-            LeftEyeOuter,
-            RightEyeInner,
-            RightEye,
-            RightEyeOuter,
-            LeftEar,
-            RightEar,
-            MouthLeft,
-            MouthRight,
-            LeftShoulder,
-            RightShoulder,
-            LeftElbow,
-            RightElbow,
-            LeftWrist,
-            RightWrist,
-            LeftPinky,
-            RightPinky,
-            LeftIndex,
-            RightIndex,
-            LeftThumb,
-            RightThumb,
-            LeftHip,
-            RightHip,
-            LeftKnee,
-            RightKnee,
-            LeftAnkle,
-            RightAnkle,
-            LeftHeel,
-            RightHeel,
-            LeftFootIndex,
-            RightFootIndex,
-        };
+        private static readonly SkeletonJointId[] JointList = BodyJoints.CreateHumanPose33JointList();
 
         private static readonly SkeletonLineStrip[] DebugLineStrips =
         {
-            new SkeletonLineStrip(RightFootIndex, RightHeel, RightAnkle, RightFootIndex),
-            new SkeletonLineStrip(LeftFootIndex, LeftHeel, LeftAnkle, LeftFootIndex),
-            new SkeletonLineStrip(RightAnkle, RightKnee, RightHip),
-            new SkeletonLineStrip(LeftAnkle, LeftKnee, LeftHip),
-            new SkeletonLineStrip(RightHip, LeftHip, LeftShoulder, RightShoulder, RightHip),
-            new SkeletonLineStrip(RightShoulder, RightElbow, RightWrist, RightThumb),
-            new SkeletonLineStrip(LeftShoulder, LeftElbow, LeftWrist, LeftThumb),
-            new SkeletonLineStrip(RightWrist, RightPinky, RightIndex, RightWrist),
-            new SkeletonLineStrip(LeftWrist, LeftPinky, LeftIndex, LeftWrist),
-            new SkeletonLineStrip(MouthRight, MouthLeft),
-            new SkeletonLineStrip(RightEar, RightEye, Nose, LeftEye, LeftEar),
+            new SkeletonLineStrip(BodyJoints.RightFootIndex, BodyJoints.RightHeel, BodyJoints.RightAnkle, BodyJoints.RightFootIndex),
+            new SkeletonLineStrip(BodyJoints.LeftFootIndex, BodyJoints.LeftHeel, BodyJoints.LeftAnkle, BodyJoints.LeftFootIndex),
+            new SkeletonLineStrip(BodyJoints.RightAnkle, BodyJoints.RightKnee, BodyJoints.RightHip),
+            new SkeletonLineStrip(BodyJoints.LeftAnkle, BodyJoints.LeftKnee, BodyJoints.LeftHip),
+            new SkeletonLineStrip(BodyJoints.RightHip, BodyJoints.LeftHip, BodyJoints.LeftShoulder, BodyJoints.RightShoulder, BodyJoints.RightHip),
+            new SkeletonLineStrip(BodyJoints.RightShoulder, BodyJoints.RightElbow, BodyJoints.RightWrist, BodyJoints.RightThumb),
+            new SkeletonLineStrip(BodyJoints.LeftShoulder, BodyJoints.LeftElbow, BodyJoints.LeftWrist, BodyJoints.LeftThumb),
+            new SkeletonLineStrip(BodyJoints.RightWrist, BodyJoints.RightPinky, BodyJoints.RightIndex, BodyJoints.RightWrist),
+            new SkeletonLineStrip(BodyJoints.LeftWrist, BodyJoints.LeftPinky, BodyJoints.LeftIndex, BodyJoints.LeftWrist),
+            new SkeletonLineStrip(BodyJoints.MouthRight, BodyJoints.MouthLeft),
+            new SkeletonLineStrip(BodyJoints.RightEar, BodyJoints.RightEye, BodyJoints.Nose, BodyJoints.LeftEye, BodyJoints.LeftEar),
         };
 
         public const int JointCount = 33;
@@ -423,20 +321,10 @@ namespace HEXLab.Hextrackingconnector
                 "HumanPoseSkeleton33",
                 JointList,
                 DebugLineStrips,
-                new NoseEarsHeadPoseProvider(Nose, RightEar, LeftEar));
+                new NoseEarsHeadPoseProvider(BodyJoints.Nose, BodyJoints.RightEar, BodyJoints.LeftEar),
+                BodyJoints.CreateHumanPose33MirrorPairs());
 
         public static IReadOnlyList<SkeletonJointId> Joints => JointList;
-
-        public static SkeletonJointId ToJointId(SkeletonJoint joint)
-        {
-            var index = (int)joint;
-            if (index < 0 || index >= JointList.Length)
-            {
-                throw new ArgumentOutOfRangeException(nameof(joint));
-            }
-
-            return JointList[index];
-        }
     }
 
     internal sealed class NoseEarsHeadPoseProvider : ISkeletonHeadPoseProvider

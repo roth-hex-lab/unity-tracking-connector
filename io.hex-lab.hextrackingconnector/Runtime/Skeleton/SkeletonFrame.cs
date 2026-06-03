@@ -58,46 +58,6 @@ namespace HEXLab.Hextrackingconnector
         public IReadOnlyList<SkeletonJointPose> JointPoses => Pose.JointPoses;
 
         public SkeletonJointPose this[SkeletonJointId joint] => GetPoint(joint);
-        public SkeletonJointPose this[SkeletonJoint joint] => GetPoint(joint);
-
-        public SkeletonJointPose Nose => this[SkeletonJoint.Nose];
-        public SkeletonJointPose LeftEyeInner => this[SkeletonJoint.LeftEyeInner];
-        public SkeletonJointPose LeftEye => this[SkeletonJoint.LeftEye];
-        public SkeletonJointPose LeftEyeOuter => this[SkeletonJoint.LeftEyeOuter];
-        public SkeletonJointPose RightEyeInner => this[SkeletonJoint.RightEyeInner];
-        public SkeletonJointPose RightEye => this[SkeletonJoint.RightEye];
-        public SkeletonJointPose RightEyeOuter => this[SkeletonJoint.RightEyeOuter];
-        public SkeletonJointPose LeftEar => this[SkeletonJoint.LeftEar];
-        public SkeletonJointPose RightEar => this[SkeletonJoint.RightEar];
-        public SkeletonJointPose MouthLeft => this[SkeletonJoint.MouthLeft];
-        public SkeletonJointPose MouthRight => this[SkeletonJoint.MouthRight];
-        public SkeletonJointPose LeftShoulder => this[SkeletonJoint.LeftShoulder];
-        public SkeletonJointPose RightShoulder => this[SkeletonJoint.RightShoulder];
-        public SkeletonJointPose LeftElbow => this[SkeletonJoint.LeftElbow];
-        public SkeletonJointPose RightElbow => this[SkeletonJoint.RightElbow];
-        public SkeletonJointPose LeftWrist => this[SkeletonJoint.LeftWrist];
-        public SkeletonJointPose RightWrist => this[SkeletonJoint.RightWrist];
-        public SkeletonJointPose LeftPinky => this[SkeletonJoint.LeftPinky];
-        public SkeletonJointPose RightPinky => this[SkeletonJoint.RightPinky];
-        public SkeletonJointPose LeftIndex => this[SkeletonJoint.LeftIndex];
-        public SkeletonJointPose RightIndex => this[SkeletonJoint.RightIndex];
-        public SkeletonJointPose LeftThumb => this[SkeletonJoint.LeftThumb];
-        public SkeletonJointPose RightThumb => this[SkeletonJoint.RightThumb];
-        public SkeletonJointPose LeftHip => this[SkeletonJoint.LeftHip];
-        public SkeletonJointPose RightHip => this[SkeletonJoint.RightHip];
-        public SkeletonJointPose LeftKnee => this[SkeletonJoint.LeftKnee];
-        public SkeletonJointPose RightKnee => this[SkeletonJoint.RightKnee];
-        public SkeletonJointPose LeftAnkle => this[SkeletonJoint.LeftAnkle];
-        public SkeletonJointPose RightAnkle => this[SkeletonJoint.RightAnkle];
-        public SkeletonJointPose LeftHeel => this[SkeletonJoint.LeftHeel];
-        public SkeletonJointPose RightHeel => this[SkeletonJoint.RightHeel];
-        public SkeletonJointPose LeftFootIndex => this[SkeletonJoint.LeftFootIndex];
-        public SkeletonJointPose RightFootIndex => this[SkeletonJoint.RightFootIndex];
-
-        public bool IsTracked(SkeletonJoint joint)
-        {
-            return Pose.IsTracked(joint);
-        }
 
         public bool IsTracked(SkeletonJointId joint)
         {
@@ -109,11 +69,6 @@ namespace HEXLab.Hextrackingconnector
             return Pose.IsTracked(index);
         }
 
-        public Vector3 GetJoint(SkeletonJoint joint)
-        {
-            return Pose.GetJoint(joint);
-        }
-
         public Vector3 GetJoint(SkeletonJointId joint)
         {
             return Pose.GetJoint(joint);
@@ -122,11 +77,6 @@ namespace HEXLab.Hextrackingconnector
         public Vector3 GetJoint(int index)
         {
             return Pose.GetJoint(index);
-        }
-
-        public SkeletonJointPose GetPoint(SkeletonJoint joint)
-        {
-            return Pose.GetPoint(joint);
         }
 
         public SkeletonJointPose GetPoint(SkeletonJointId joint)
@@ -147,11 +97,6 @@ namespace HEXLab.Hextrackingconnector
         public bool TryGetJointPose(int index, out SkeletonJointPose jointPose)
         {
             return Pose.TryGetJointPose(index, out jointPose);
-        }
-
-        public bool TryGetJoint(SkeletonJoint joint, out Vector3 position)
-        {
-            return Pose.TryGetJoint(joint, out position);
         }
 
         public bool TryGetJoint(SkeletonJointId joint, out Vector3 position)

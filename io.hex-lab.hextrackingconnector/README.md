@@ -28,9 +28,9 @@ public class PoseConsumer : MonoBehaviour
 
     private void OnPoseReceived(SkeletonFrame frame)
     {
-        if (frame.LeftWrist.IsTracked)
+        if (frame.TryGetJoint(BodyJoints.LeftWrist, out var leftWrist))
         {
-            Debug.Log(frame.LeftWrist.Position);
+            Debug.Log(leftWrist);
         }
     }
 }
@@ -46,7 +46,7 @@ To drive a humanoid avatar directly, add `DirectHumanoidBoneDriver` to a GameObj
 
 `PoseFrame` and `WireLandmarkData` are internal wire DTOs that match incoming JSON payloads. User code should consume `SkeletonFrame`, which is the public Unity-facing wrapper around a timeless `SkeletonPose` plus frame metadata such as sequence number, receive time, source timestamp, and source id. `SkeletonPose` holds the actual joint sample data and can be stored, replayed, converted, or wrapped in a new `SkeletonFrame` without mixing pose state with transport timing.
 
-Each pose carries a `SkeletonDefinition`; the current default input is `HumanPoseSkeleton33`, selected automatically when older senders omit `skeleton_id`. Access built-in human joints through properties such as `frame.Nose`, `frame.LeftWrist`, or `frame.TryGetJoint(SkeletonJoint.LeftWrist, out var wrist)`. For richer data, use `TryGetJointPose` to read optional position, rotation, confidence, provenance, and source labels from a `SkeletonJointPose`.
+Each pose carries a `SkeletonDefinition`; the current default input is `HumanPoseSkeleton33`, selected automatically when older senders omit `skeleton_id`. Access anatomical human joints through reusable ids such as `BodyJoints.Nose`, `BodyJoints.LeftWrist`, or `frame.TryGetJoint(BodyJoints.LeftWrist, out var wrist)`. For richer data, use `TryGetJointPose` to read optional position, rotation, confidence, provenance, and source labels from a `SkeletonJointPose`.
 
 Wire landmarks may provide positions only, or optional rotations, confidence values, provenance, and source labels. Missing channels remain missing in the `SkeletonPose`; downstream components can choose whether to require positions, rotations, or a specific skeleton definition.
 
