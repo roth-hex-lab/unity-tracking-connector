@@ -5,7 +5,9 @@ using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
 using System.Runtime.Serialization;
+using System.Text.RegularExpressions;
 using UnityEngine;
+using UnityEngine.TestTools;
 
 namespace HEXLab.Hextrackingconnector.Tests
 {
@@ -110,6 +112,12 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(typeof(BodyDebugVis)));
             Assert.IsNull(typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.Body"));
+        }
+
+        [Test]
+        public void RuntimeAssemblyDoesNotExposeUnusedAccumulatedBuffer()
+        {
+            Assert.IsNull(typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.AccumulatedBuffer"));
         }
 
         [Test]
@@ -792,6 +800,12 @@ namespace HEXLab.Hextrackingconnector.Tests
         }
 
         [Test]
+        public void SmootherCreationDoesNotExposeSeparateFactoryApi()
+        {
+            Assert.IsNull(typeof(SkeletonFrame).Assembly.GetType("HEXLab.Hextrackingconnector.PoseSmootherFactory"));
+        }
+
+        [Test]
         public void BodyCalibrationIsAComponentWithCalibrateCommand()
         {
             Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(typeof(BodyCalibration)));
@@ -830,6 +844,36 @@ namespace HEXLab.Hextrackingconnector.Tests
                 Assert.IsTrue(received.TryGetJoint(BodyJoints.LeftHip, out var leftHip));
                 Assert.IsTrue(received.TryGetJoint(BodyJoints.RightHip, out var rightHip));
                 Assert.AreEqual(Vector3.zero, leftHip + rightHip);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [Test]
+        public void BodyCalibrationContinuesPublishingWhenSubscriberThrows()
+        {
+            var gameObject = new GameObject("BodyCalibrationSubscriberExceptionTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var calibration = gameObject.AddComponent<BodyCalibration>();
+            SetPrivateField(calibration, "skeletonProvider", source);
+            SetPrivateField(calibration, "autoCalibrate", false);
+            SetPrivateField(calibration, "calibrationMode", BodyCalibrationMode.None);
+
+            var receivedAfterThrowingSubscriber = false;
+            ((ISkeletonProvider)calibration).PoseReceived += _ => throw new InvalidOperationException("subscriber failed");
+            ((ISkeletonProvider)calibration).PoseReceived += _ => receivedAfterThrowingSubscriber = true;
+
+            try
+            {
+                gameObject.SetActive(true);
+
+                LogAssert.Expect(LogType.Exception, new Regex("subscriber failed"));
+                Assert.DoesNotThrow(() => source.Publish(CreateStandingHumanPoseFrame()));
+
+                Assert.IsTrue(receivedAfterThrowingSubscriber);
             }
             finally
             {

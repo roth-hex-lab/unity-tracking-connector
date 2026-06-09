@@ -4,24 +4,56 @@ using UnityEngine;
 
 namespace HEXLab.Hextrackingconnector
 {
+    /// <summary>
+    /// Flags that describe which values in a <see cref="SkeletonJointPose"/> are meaningful.
+    /// </summary>
+    /// <remarks>
+    /// Each channel uses one bit so callers can combine available data with bitwise flags,
+    /// for example <c>Position | Rotation</c> without inventing confidence.
+    /// </remarks>
     [Flags]
     public enum SkeletonJointChannels
     {
+        /// <summary>No pose channels are available.</summary>
         None = 0,
+
+        /// <summary>The joint pose contains a meaningful position.</summary>
         Position = 1 << 0,
+
+        /// <summary>The joint pose contains a meaningful rotation.</summary>
         Rotation = 1 << 1,
+
+        /// <summary>The joint pose contains a meaningful confidence value.</summary>
         Confidence = 1 << 2,
     }
 
+    /// <summary>
+    /// Describes where a joint value came from before it reached Unity.
+    /// </summary>
     public enum SkeletonDataProvenance
     {
+        /// <summary>The source of the value is not known.</summary>
         Unknown,
+
+        /// <summary>The value came directly from the tracker or sender for this frame.</summary>
         Direct,
+
+        /// <summary>The value was calculated from other tracked data, such as a limb rotation from landmarks.</summary>
         Inferred,
+
+        /// <summary>The sender reused a previous value because no fresh value was available this frame.</summary>
         Held,
+
+        /// <summary>
+        /// The value describes a default/rest pose rather than live tracking data.
+        /// Consumers such as <see cref="DirectHumanoidBoneDriver"/> avoid driving rotations from rest data.
+        /// </summary>
         Rest,
     }
 
+    /// <summary>
+    /// Coordinate space during use.
+    /// </summary>
     public enum SkeletonCoordinateSpace
     {
         Unspecified,
@@ -60,6 +92,8 @@ namespace HEXLab.Hextrackingconnector
 
         private readonly string source;
 
+        // Channels say which values are meaningful. A pose can carry position,
+        // rotation, confidence, or any useful subset without inventing missing data.
         public SkeletonJointPose(
             SkeletonJointChannels channels,
             Vector3 position,

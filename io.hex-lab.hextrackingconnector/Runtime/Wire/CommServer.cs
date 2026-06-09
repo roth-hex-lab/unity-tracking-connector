@@ -165,23 +165,7 @@ namespace HEXLab.Hextrackingconnector
 
         private void RaisePoseReceived(SkeletonFrame pose)
         {
-            var handlers = PoseReceived;
-            if (handlers == null)
-            {
-                return;
-            }
-
-            foreach (Action<SkeletonFrame> handler in handlers.GetInvocationList())
-            {
-                try
-                {
-                    handler(pose);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception, this);
-                }
-            }
+            SkeletonProviderUtility.RaisePoseReceived(PoseReceived, pose, this);
         }
 
         private void RunTransportLoop()

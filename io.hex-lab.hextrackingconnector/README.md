@@ -1,12 +1,47 @@
 # HEX Tracking Connector
 
-Unity runtime package for receiving body pose frames from external trackers, exposing them as stable skeleton data, and using them for debug visualization or humanoid avatar control.
+Unity runtime package for receiving body pose frames from an external Python tracker, converting the wire data into Unity-side skeleton poses, and exposing those poses through a chain of simple skeleton-provider blocks.
+
+The central idea is the `ISkeletonProvider` pipeline:
+
+```text
+Python tracker
+  -> CommServer
+  -> SkeletonSmoothing
+  -> SkeletonConverter, if a different skeleton layout is needed
+  -> BodyCalibration
+  -> BodyDebugVis, DirectHumanoidBoneDriver, or your own script
+```
+
+Each block either produces or consumes `SkeletonFrame` objects. A block that produces frames implements `ISkeletonProvider`; a consumer can subscribe to `PoseReceived` and can also ask for the latest pose with `TryGetLatestPose`.
 
 ## Quick Start
 
 1. Add the `Communication` prefab to the scene.
-2. Choose the transport, input skeleton, coordinate source, mirror mode, and smoothing algorithm on the `CommServer` component.
-3. Subscribe to pose frames from your own script:
+2. Configure `CommServer`:
+   - `Transport`: named pipe or UDP.
+   - `Input Skeleton`: usually `Auto`.
+   - `Coordinate Source`: `Free` for world/PnP coordinates or `Anchored` for body-relative world landmarks.
+   - `Mirror Mode`: optional left/right mirroring.
+3. Use the `Smoothed` child object on the `Communication` prefab as the default provider for most consumers.
+4. Add `Visuals` for line-art debug output, or add `DirectHumanoidBoneDriver` to a humanoid avatar.
+5. Assign provider fields in the inspector. The custom provider drawer shows the pipeline flow and warns about invalid assignments.
+
+The demo scene wires the blocks as:
+
+```text
+Communication/CommServer
+  -> Communication/Smoothed/SkeletonSmoothing
+  -> Visuals/SkeletonConverter
+  -> Visuals/BodyCalibration
+  -> Visuals/BodyDebugVis
+```
+
+The reusable `Visuals` and robot prefabs intentionally leave some provider fields unassigned. When you drag them into a new scene, assign their source/provider fields to the provider block you want to consume.
+
+## Reading Pose Data
+
+Prefer depending on `ISkeletonProvider`, not directly on `CommServer`. That lets your script use raw, smoothed, converted, or calibrated data without changing code.
 
 ```csharp
 using HEXLab.Hextrackingconnector;
@@ -14,16 +49,29 @@ using UnityEngine;
 
 public class PoseConsumer : MonoBehaviour
 {
-    [SerializeField] private CommServer commServer;
+    [SerializeField, SkeletonProvider] private MonoBehaviour skeletonProvider;
+
+    private ISkeletonProvider activeProvider;
 
     private void OnEnable()
     {
-        commServer.PoseReceived += OnPoseReceived;
+        if (SkeletonProviderUtility.TryResolveProvider(
+                skeletonProvider,
+                this,
+                nameof(skeletonProvider),
+                allowSelf: true,
+                out activeProvider))
+        {
+            activeProvider.PoseReceived += OnPoseReceived;
+        }
     }
 
     private void OnDisable()
     {
-        commServer.PoseReceived -= OnPoseReceived;
+        if (activeProvider != null)
+        {
+            activeProvider.PoseReceived -= OnPoseReceived;
+        }
     }
 
     private void OnPoseReceived(SkeletonFrame frame)
@@ -36,24 +84,113 @@ public class PoseConsumer : MonoBehaviour
 }
 ```
 
-For a simple line-art visualization, add the `DebugBody` prefab to the scene. Its `BodyDebugVis` component subscribes to any component that implements `ISkeletonProvider`; `CommServer` is the default provider. The visualizer owns its own drawing, scaling, and head visualization settings. It can also use a `BodyCalibration` component on the same GameObject for local one-shot visualization calibration; disable `Apply Calibration` if the incoming provider is already calibrated.
+Use `TryGetJoint(...)` for position-only code. Use `TryGetJointPose(...)` when you need optional rotation, confidence, provenance, or source labels.
 
-To calibrate data for any consumer, put `BodyCalibration` in the skeleton provider pipeline: assign its source provider, then point `BodyDebugVis`, `DirectHumanoidBoneDriver`, or student scripts at the calibration component. `BodyCalibration` republishes calibrated `SkeletonFrame`s, keeps frame metadata and rotation channels intact, and still exposes the older one-shot `Apply(...)` methods for local visualization code.
+## Provider Blocks
 
-To drive a humanoid avatar directly, add `DirectHumanoidBoneDriver` to a GameObject with a humanoid `Animator`, then assign an `ISkeletonProvider` such as `BodyCalibration`, `CommServer`, or `SkeletonConverter`. The driver consumes `UnityHumanoidControlSkeleton` frames directly, or can retarget compatible human skeleton poses into that control skeleton as a best-effort pose. Its optional Avatar Fit section can scale the rig once or continuously from the incoming head-to-foot skeleton height while keeping calibration responsible for world-space offsets.
+| Block | Role | Input | Output | Use When |
+|---|---|---|---|---|
+| `CommServer` | Receives framed JSON from Python over named pipe or UDP and maps wire landmark indices to named Unity joints. | External process. | `HumanPoseSkeleton33` by default. | You need the live tracker connection. |
+| `SkeletonSmoothing` | Smooths positions over recent frames. | Any `ISkeletonProvider`. | Same skeleton definition as input. | Tracking jitter should be reduced before calibration or visualization. |
+| `SkeletonConverter` | Converts a frame to another supported skeleton definition. | Any `ISkeletonProvider`. | Source, `HumanPoseSkeleton33`, `CocoPose17`, or `UnityHumanoidControl`. | A consumer expects a smaller skeleton or humanoid-control pose. |
+| `BodyCalibration` | Applies an additive offset so the body is centered and optionally grounded. | Any `ISkeletonProvider`. | Same skeleton definition as input. | Multiple consumers should share the same calibrated pose. |
+| `BodyDebugVis` | Draws joints, debug line strips, and optional head pose. | Any `ISkeletonProvider`. | Visual output only. | You want to inspect incoming or processed tracking data. |
+| `DirectHumanoidBoneDriver` | Applies humanoid-control frames to a Unity humanoid `Animator`. | `UnityHumanoidControl` frames, or compatible frames when retargeting is enabled. | Avatar motion. | You want to drive a humanoid avatar directly from tracking data. |
+
+Recommended order:
+
+```text
+CommServer -> SkeletonSmoothing -> SkeletonConverter if needed -> BodyCalibration -> consumers
+```
+
+Smooth before calibration so the calibration block sees stable data. Convert before calibration when the consumer needs a target skeleton such as `UnityHumanoidControl`; calibrating after conversion keeps the final consumer space easy to reason about.
 
 ## Runtime Model
 
-`PoseFrame` and `WireLandmarkData` are internal wire DTOs that match incoming JSON payloads. User code should consume `SkeletonFrame`, which is the public Unity-facing wrapper around a timeless `SkeletonPose` plus frame metadata such as sequence number, receive time, source timestamp, and source id. `SkeletonPose` holds the actual joint sample data and can be stored, replayed, converted, or wrapped in a new `SkeletonFrame` without mixing pose state with transport timing.
+`PoseFrame` and `WireLandmarkData` are internal wire DTOs that mirror the Python JSON payload. User code should consume `SkeletonFrame`.
 
-Each pose carries a `SkeletonDefinition`; the current default input is `HumanPoseSkeleton33`, selected automatically when older senders omit `skeleton_id`. Access anatomical human joints through reusable ids such as `BodyJoints.Nose`, `BodyJoints.LeftWrist`, or `frame.TryGetJoint(BodyJoints.LeftWrist, out var wrist)`. For richer data, use `TryGetJointPose` to read optional position, rotation, confidence, provenance, and source labels from a `SkeletonJointPose`.
+`SkeletonFrame` wraps:
 
-Wire landmarks may provide positions only, or optional rotations, confidence values, provenance, and source labels. Missing channels remain missing in the `SkeletonPose`; downstream components can choose whether to require positions, rotations, or a specific skeleton definition.
+- `SkeletonPose`: timeless joint data.
+- `SkeletonFrameMetadata`: sequence number, receive time, optional source timestamp, and source id.
 
-`CocoPoseSkeleton17.TryCreateFrom(frame, out var cocoFrame)` converts a `HumanPoseSkeleton33` frame to the COCO 17-joint layout when a smaller target skeleton is useful.
+`SkeletonPose` carries a `SkeletonDefinition`, which names the joint layout and debug topology. The default input definition is `HumanPoseSkeleton33`, matching MediaPipe Pose 33 landmarks. Access shared human joints through `BodyJoints`, for example `BodyJoints.Nose`, `BodyJoints.LeftWrist`, and `BodyJoints.RightAnkle`.
 
-`UnityHumanoidPoseRetargeter.TryCreateFrom(frame, out var humanoidFrame)` converts compatible human pose frames to `UnityHumanoidControlSkeleton`, a skeleton definition whose joints map to Unity `HumanBodyBones`. It derives spine, limb, foot, and MediaPipe-style hand rotations from available landmarks where necessary, marks inferred values as `SkeletonDataProvenance.Inferred`, and assigns lower confidence than direct input data. Missing channels remain unavailable rather than being filled with rest rotations.
+Each joint stores only the channels that are actually available. A joint can have position, rotation, confidence, or a subset of those values. Missing channels stay missing; downstream code decides what it requires.
 
-`SkeletonConverter` is a scene component that subscribes to one `ISkeletonProvider`, converts incoming frames to a selected output skeleton, and republishes them as another `ISkeletonProvider`. This lets debug visualizers, rig drivers, or student scripts choose whether they want the raw comm-server skeleton, a COCO layout, or a Unity humanoid control pose.
+## Skeleton Definitions
 
-`CommServer` publishes at most one pose event per Unity frame. If several transport packets arrive before `Update`, the smoother sees all of them and the latest smoothed pose is published.
+Current built-in definitions:
+
+| Definition | Joint Count | Purpose |
+|---|---:|---|
+| `HumanPoseSkeleton33` | 33 | Default MediaPipe-style human pose layout received from Python. |
+| `CocoPoseSkeleton17` | 17 | Smaller body layout for code or visualizations that do not need hands, feet detail, or face detail. |
+| `UnityHumanoidControlSkeleton` | 22 | Control skeleton whose joints map to Unity `HumanBodyBones`. Used by `DirectHumanoidBoneDriver`. |
+
+`CocoPoseSkeleton17.TryCreateFrom(frame, out var cocoFrame)` converts compatible `HumanPoseSkeleton33` frames to COCO.
+
+`UnityHumanoidPoseRetargeter.TryCreateFrom(frame, out var humanoidFrame)` creates a best-effort humanoid-control pose. It derives body, limb, foot, and hand rotations from landmarks when direct rotations are not present, marks inferred values with `SkeletonDataProvenance.Inferred`, and leaves unavailable channels missing.
+
+## Extending The Pipeline
+
+### Add A Consumer
+
+Create a `MonoBehaviour` with a `[SkeletonProvider] MonoBehaviour` field, resolve it to `ISkeletonProvider`, subscribe in `OnEnable`, and unsubscribe in `OnDisable`. This is the simplest way to build student scripts that work with any pipeline stage.
+
+### Add A Processing Block
+
+Implement `ISkeletonProvider` when your component receives frames from one provider and republishes processed frames.
+
+```csharp
+[SkeletonPipelineNode("MyPoseBlock")]
+public class MyPoseBlock : MonoBehaviour, ISkeletonProvider
+{
+    [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour sourceProvider;
+
+    private ISkeletonProvider activeSource;
+    private SkeletonFrame latestFrame;
+    private bool hasLatestFrame;
+
+    public event System.Action<SkeletonFrame> PoseReceived;
+
+    public bool TryGetLatestPose(out SkeletonFrame pose)
+    {
+        pose = latestFrame;
+        return hasLatestFrame;
+    }
+}
+```
+
+Use `SkeletonProviderUtility.RaisePoseReceived(...)` when republishing so one bad subscriber cannot interrupt the rest of the pipeline.
+
+### Add A New Wire Skeleton
+
+If Python sends a different landmark layout, create:
+
+1. A `SkeletonDefinition` for the Unity-side joint names.
+2. An `IWireSkeletonMapper` that maps incoming landmark indices to `SkeletonJointId`s.
+3. A registration call:
+
+```csharp
+InputSkeletonRegistry.Register("my.tracker.skeleton", new MyWireSkeletonMapper());
+```
+
+When `CommServer.InputSkeleton` is `Auto`, incoming `skeleton_id` values are resolved through this registry. Older senders that omit `skeleton_id` are treated as MediaPipe Pose 33.
+
+## Package Layout
+
+| Location | Contents |
+|---|---|
+| `Runtime/Wire` | Transport, JSON DTOs, input skeleton selection, and wire-index mapping. |
+| `Runtime/Skeleton/Core` | Public pose/frame/definition primitives and provider contract. |
+| `Runtime/Skeleton/Definitions` | Built-in anatomical skeleton definitions. |
+| `Runtime/Skeleton/Providers` | Pipeline blocks such as smoothing, conversion, and calibration. |
+| `Runtime/Skeleton/Humanoid` | Unity humanoid control definition, retargeting, and avatar driver. |
+| `Runtime/Visualization` | Debug body visualization and generated debug materials. |
+| `Editor` | Inspector tooling for provider validation, pipeline flow display, and component editors. |
+| `Samples/Demo` | Example scene with communication, smoothing, calibration, visualization, and robot avatar setup. |
+
+## Verification Notes
+
+`CommServer` publishes at most one pose event per Unity frame. If several transport packets arrive before `Update`, the latest pending pose is published. Smoothing should be handled by `SkeletonSmoothing`, not by `CommServer`.

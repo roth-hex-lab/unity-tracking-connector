@@ -1,19 +1,44 @@
+using System;
 using UnityEngine;
 
 namespace HEXLab.Hextrackingconnector
 {
-    public sealed class SkeletonProviderAttribute : PropertyAttribute
-    {
-        public SkeletonProviderAttribute(bool allowSelf = true)
-        {
-            AllowSelf = allowSelf;
-        }
-
-        public bool AllowSelf { get; }
-    }
-
+    /// <summary>
+    /// Shared helper methods for validating provider references and publishing provider events.
+    /// </summary>
     public static class SkeletonProviderUtility
     {
+        /// <summary>
+        /// Publishes a pose frame to all subscribers while logging subscriber exceptions individually.
+        /// </summary>
+        /// <remarks>
+        /// Use this from <see cref="ISkeletonProvider"/> implementations instead of invoking
+        /// <c>PoseReceived</c> directly. A normal multicast event invocation stops at the first
+        /// throwing subscriber; this helper gives every consumer a chance to receive the frame.
+        /// </remarks>
+        public static void RaisePoseReceived(
+            Action<SkeletonFrame> handlers,
+            SkeletonFrame frame,
+            UnityEngine.Object context)
+        {
+            if (handlers == null)
+            {
+                return;
+            }
+
+            foreach (Action<SkeletonFrame> handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    handler(frame);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception, context);
+                }
+            }
+        }
+
         public static bool IsValidProvider(
             MonoBehaviour component,
             MonoBehaviour owner = null,

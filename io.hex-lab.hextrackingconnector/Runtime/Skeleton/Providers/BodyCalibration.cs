@@ -261,6 +261,8 @@ namespace HEXLab.Hextrackingconnector
                 return false;
             }
 
+            // Calibration is an additive world/root-space offset. It never changes
+            // joint rotations or remaps skeleton definitions.
             offset = -hipCentre;
 
             if (mode == BodyCalibrationMode.CenterHipsGroundFeet)
@@ -377,16 +379,7 @@ namespace HEXLab.Hextrackingconnector
                 return;
             }
 
-            var handlers = PoseReceived;
-            if (handlers == null)
-            {
-                return;
-            }
-
-            foreach (Action<SkeletonFrame> handler in handlers.GetInvocationList())
-            {
-                handler(calibratedFrame);
-            }
+            SkeletonProviderUtility.RaisePoseReceived(PoseReceived, calibratedFrame, this);
         }
 
         private void CachePose(SkeletonFrame frame)

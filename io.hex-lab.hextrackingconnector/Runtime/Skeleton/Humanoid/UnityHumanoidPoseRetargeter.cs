@@ -217,6 +217,8 @@ namespace HEXLab.Hextrackingconnector
             rotation = Quaternion.identity;
             forward = Vector3.forward;
 
+            // The hips and shoulders provide a stable body basis for inferred
+            // humanoid rotations when the incoming landmarks do not include them.
             if (!TryGetMidpoint(source, BodyJoints.LeftHip, BodyJoints.RightHip, out hipCentre) ||
                 !TryGetMidpoint(source, BodyJoints.LeftShoulder, BodyJoints.RightShoulder, out shoulderCentre) ||
                 !source.TryGetJoint(BodyJoints.LeftHip, out var leftHip) ||

@@ -132,19 +132,4 @@ namespace HEXLab.Hextrackingconnector
             activeDefinitionId = null;
         }
     }
-
-    public static class PoseSmootherFactory
-    {
-        public static IPoseSmoother Create(PoseSmoothingMode mode, int movingAverageWindowSize)
-        {
-            switch (mode)
-            {
-                case PoseSmoothingMode.MovingAverage:
-                    return new MovingAveragePoseSmoother(movingAverageWindowSize);
-                case PoseSmoothingMode.None:
-                default:
-                    return new PassthroughPoseSmoother();
-            }
-        }
-    }
 }

@@ -124,30 +124,26 @@ namespace HEXLab.Hextrackingconnector
                 return;
             }
 
-            poseSmoother = PoseSmootherFactory.Create(smoothingMode, movingAverageWindowSize);
+            poseSmoother = CreateSmoother(smoothingMode, movingAverageWindowSize);
             activeSmoothingMode = smoothingMode;
             activeMovingAverageWindowSize = movingAverageWindowSize;
         }
 
+        private static IPoseSmoother CreateSmoother(PoseSmoothingMode mode, int movingAverageWindowSize)
+        {
+            switch (mode)
+            {
+                case PoseSmoothingMode.MovingAverage:
+                    return new MovingAveragePoseSmoother(movingAverageWindowSize);
+                case PoseSmoothingMode.None:
+                default:
+                    return new PassthroughPoseSmoother();
+            }
+        }
+
         private void RaisePoseReceived(SkeletonFrame pose)
         {
-            var handlers = PoseReceived;
-            if (handlers == null)
-            {
-                return;
-            }
-
-            foreach (Action<SkeletonFrame> handler in handlers.GetInvocationList())
-            {
-                try
-                {
-                    handler(pose);
-                }
-                catch (Exception exception)
-                {
-                    Debug.LogException(exception, this);
-                }
-            }
+            SkeletonProviderUtility.RaisePoseReceived(PoseReceived, pose, this);
         }
     }
 #pragma warning restore 0649
