@@ -9,7 +9,10 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 4461321283696998781}
+  - component: {fileID: 2179791825877042448}
   - component: {fileID: 7801181246178537890}
+  - component: {fileID: 8473518388424384043}
+  - component: {fileID: 3976285574979983094}
   m_Layer: 0
   m_Name: Communication
   m_TagString: Untagged
@@ -33,6 +36,22 @@ Transform:
   - {fileID: 8703092147810751760}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2179791825877042448
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2312988602424259025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 418c71826b5740f8a179455507598928, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonProviderSwitcher
+  primaryProvider: {fileID: 7801181246178537890}
+  secondaryProvider: {fileID: 3976285574979983094}
+  activeSource: 1
+  publishLatestOnSwitch: 0
 --- !u!114 &7801181246178537890
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -52,6 +71,50 @@ MonoBehaviour:
   coordinateSource: 0
   mirrorMode: 0
   logConnectionEvents: 1
+--- !u!114 &8473518388424384043
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2312988602424259025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7bd67d8170e4694bf2baf575960b210, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonPoseRecorder
+  source: {fileID: 0}
+  sourceMode: 0
+  recordingFormat: 0
+  outputPath: 
+  recordOnStart: 0
+  maxDurationSeconds: 0
+  maxFrameCount: 0
+  maxQueuedFrames: 2048
+  overflowMode: 0
+  stopOnDefinitionChange: 1
+--- !u!114 &3976285574979983094
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2312988602424259025}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b70b4bf2dd7745f29147ad89697c30e3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonPosePlayback
+  recordingPath: 
+  playOnStart: 0
+  loop: 0
+  playbackSpeed: 1
+  timeSource: 0
+  catchUpMode: 0
+  maxFramesPerUpdate: 4
+  endBehavior: 0
+  useUnscaledTime: 1
+  fixedFrameRate: 30
 --- !u!1 &8042508515723471860
 GameObject:
   m_ObjectHideFlags: 0
@@ -96,6 +159,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e496d6270a940768da6162d8e7dcae1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonSmoothing
-  sourceProvider: {fileID: 7801181246178537890}
+  sourceProvider: {fileID: 2179791825877042448}
   smoothingMode: 1
   movingAverageWindowSize: 3

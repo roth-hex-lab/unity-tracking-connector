@@ -26,8 +26,13 @@ https://github.com/roth-hex-lab/unity-tracking-connector.git?path=/io.hex-lab.he
 | `SkeletonSmoothing` | Smooths incoming joint positions over a moving window. |
 | `SkeletonConverter` | Converts frames to supported output definitions such as COCO 17 or Unity humanoid control. |
 | `BodyCalibration` | Applies a shared additive calibration offset for centering and grounding. |
+| `SkeletonPoseRecorder` | Records provider output or high-fidelity CommServer capture streams to JSONL or binary files. |
+| `SkeletonPosePlayback` | Replays recorded pose streams as an `ISkeletonProvider`. |
+| `SkeletonProviderSwitcher` | Switches consumers between two provider sources, such as live tracking and playback. |
 | `BodyDebugVis` | Draws a line-art skeleton for inspection. |
 | `DirectHumanoidBoneDriver` | Drives a humanoid `Animator` from humanoid-control skeleton frames. |
+
+`SkeletonPoseRecorder` writes each capture to a new timestamped file in the selected recording folder. `SkeletonPosePlayback` browses recording files directly; example recordings should be imported from Package Manager samples and then selected normally.
 
 ## Samples
 

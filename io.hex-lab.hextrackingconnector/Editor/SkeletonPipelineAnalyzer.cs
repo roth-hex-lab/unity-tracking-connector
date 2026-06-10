@@ -85,6 +85,21 @@ namespace HEXLab.Hextrackingconnector.Editor
             out MonoBehaviour upstreamProvider)
         {
             upstreamProvider = null;
+            if (component is SkeletonProviderSwitcher switcher)
+            {
+                if (!switcher.TryGetActiveProviderComponent(out var activeProvider) ||
+                    !IsValidProviderField(
+                        activeProvider,
+                        component,
+                        allowSelf: false))
+                {
+                    return false;
+                }
+
+                upstreamProvider = activeProvider;
+                return true;
+            }
+
             foreach (var field in GetProviderFields(component.GetType()))
             {
                 var candidate = field.GetValue(component) as MonoBehaviour;
@@ -96,7 +111,7 @@ namespace HEXLab.Hextrackingconnector.Editor
                 var providerAttribute = (SkeletonProviderAttribute)Attribute.GetCustomAttribute(
                     field,
                     typeof(SkeletonProviderAttribute));
-                if (!SkeletonProviderUtility.IsValidProvider(
+                if (!IsValidProviderField(
                         candidate,
                         component,
                         providerAttribute != null && providerAttribute.AllowSelf))
@@ -109,6 +124,14 @@ namespace HEXLab.Hextrackingconnector.Editor
             }
 
             return false;
+        }
+
+        private static bool IsValidProviderField(
+            MonoBehaviour candidate,
+            MonoBehaviour owner,
+            bool allowSelf)
+        {
+            return SkeletonProviderUtility.IsValidProvider(candidate, owner, allowSelf);
         }
 
         private static IEnumerable<FieldInfo> GetProviderFields(Type type)

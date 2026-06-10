@@ -18,7 +18,7 @@ namespace HEXLab.Hextrackingconnector
     }
 
     [SkeletonPipelineNode("CommServer")]
-    public class CommServer : MonoBehaviour, ISkeletonProvider
+    public class CommServer : MonoBehaviour, ISkeletonProvider, ISkeletonCaptureSource
     {
         private const int MaxPayloadBytes = 1024 * 1024;
         private const string DefaultPipeName = "UnityMediaPipeBody";
@@ -33,6 +33,7 @@ namespace HEXLab.Hextrackingconnector
 
         private readonly ConcurrentQueue<SkeletonFrame> pendingFrames = new ConcurrentQueue<SkeletonFrame>();
         private readonly object transportLock = new object();
+        private readonly object capturedPoseLock = new object();
 
         private Thread transportThread;
         private NamedPipeServerStream pipeServer;
@@ -42,8 +43,11 @@ namespace HEXLab.Hextrackingconnector
 
         private SkeletonFrame latestPose;
         private bool hasLatestPose;
+        private SkeletonFrame latestCapturedPose;
+        private bool hasLatestCapturedPose;
 
         public event Action<SkeletonFrame> PoseReceived;
+        public event Action<SkeletonFrame> FrameCaptured;
 
         public TransportMode CurrentTransportMode => transportMode;
 
@@ -72,6 +76,15 @@ namespace HEXLab.Hextrackingconnector
         {
             pose = latestPose;
             return hasLatestPose;
+        }
+
+        public bool TryGetLatestCapturedFrame(out SkeletonFrame frame)
+        {
+            lock (capturedPoseLock)
+            {
+                frame = latestCapturedPose;
+                return hasLatestCapturedPose;
+            }
         }
 
         private void Start()
@@ -297,7 +310,40 @@ namespace HEXLab.Hextrackingconnector
         {
             if (TryParseSkeletonFrame(json, out var frame))
             {
+                CaptureFrame(frame);
                 pendingFrames.Enqueue(frame);
+            }
+        }
+
+        private void CaptureFrame(SkeletonFrame frame)
+        {
+            lock (capturedPoseLock)
+            {
+                latestCapturedPose = frame;
+                hasLatestCapturedPose = true;
+            }
+
+            RaiseFrameCaptured(frame);
+        }
+
+        private void RaiseFrameCaptured(SkeletonFrame frame)
+        {
+            var handlers = FrameCaptured;
+            if (handlers == null)
+            {
+                return;
+            }
+
+            foreach (Action<SkeletonFrame> handler in handlers.GetInvocationList())
+            {
+                try
+                {
+                    handler(frame);
+                }
+                catch (Exception exception)
+                {
+                    Debug.LogException(exception, this);
+                }
             }
         }
 

@@ -80,6 +80,7 @@ namespace HEXLab.Hextrackingconnector.Editor
                 EditorGUILayout.Toggle("Running", server.IsRunning);
                 EditorGUILayout.IntField("Pending Frames", server.PendingFrameCount);
                 EditorGUILayout.Toggle("Has Pose", server.TryGetLatestPose(out _));
+                EditorGUILayout.Toggle("Has Captured Pose", server.TryGetLatestCapturedFrame(out _));
             }
         }
     }

@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System;
 using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
@@ -638,6 +639,248 @@ namespace HEXLab.Hextrackingconnector.Tests
             Assert.AreEqual(new Vector3(-2f, 5f, 6f), leftWrist);
             Assert.AreEqual(new Vector3(1f, 2f, 3f), rightWrist);
             Assert.AreEqual(new Vector3(-0.25f, 1f, 2f), nose);
+        }
+
+        [Test]
+        public void CommServerExposesEveryParsedFrameAsCaptureSource()
+        {
+            var gameObject = new GameObject("CommServerCaptureTest");
+            gameObject.SetActive(false);
+            var server = gameObject.AddComponent<CommServer>();
+            SetPrivateField(server, "inputSkeleton", InputSkeletonSelection.MediaPipePose33);
+            SetPrivateField(server, "coordinateSource", PoseCoordinateSource.Free);
+            SetPrivateField(server, "mirrorMode", PoseMirrorMode.None);
+            var method = typeof(CommServer).GetMethod(
+                "ParseAndEnqueue",
+                BindingFlags.Instance | BindingFlags.NonPublic);
+            var json =
+                "{\"skeleton_id\":\"mediapipe.pose.33\",\"free\":[" +
+                "{\"index\":0,\"x\":0.25,\"y\":1,\"z\":2}]," +
+                "\"anchored\":[]}";
+            var capturedCount = 0;
+            var capturedFrame = default(SkeletonFrame);
+
+            try
+            {
+                Assert.IsTrue(typeof(ISkeletonCaptureSource).IsAssignableFrom(typeof(CommServer)));
+                ((ISkeletonCaptureSource)server).FrameCaptured += frame =>
+                {
+                    capturedCount++;
+                    capturedFrame = frame;
+                };
+
+                method.Invoke(server, new object[] { json });
+
+                Assert.AreEqual(1, capturedCount);
+                Assert.IsTrue(((ISkeletonCaptureSource)server).TryGetLatestCapturedFrame(out var latest));
+                Assert.AreEqual(capturedFrame.SequenceNumber, latest.SequenceNumber);
+                Assert.IsTrue(latest.TryGetJoint(BodyJoints.Nose, out var nose));
+                Assert.AreEqual(new Vector3(0.25f, 1f, 2f), nose);
+                Assert.AreEqual(1, server.PendingFrameCount);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
+        }
+
+        [TestCase(SkeletonRecordingFormat.JsonLines, ".jsonl")]
+        [TestCase(SkeletonRecordingFormat.Binary, ".hexpose")]
+        public void SkeletonPoseRecorderWritesReadableRecordings(
+            SkeletonRecordingFormat format,
+            string extension)
+        {
+            var folder = CreateTempRecordingFolder();
+            var gameObject = new GameObject("SkeletonPoseRecorderTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var recorder = gameObject.AddComponent<SkeletonPoseRecorder>();
+            SetPrivateField(recorder, "source", source);
+            SetPrivateField(recorder, "sourceMode", SkeletonRecorderSourceMode.ProviderOutput);
+            SetPrivateField(recorder, "recordingFormat", format);
+            SetPrivateField(recorder, "recordingFolder", folder);
+
+            try
+            {
+                gameObject.SetActive(true);
+                Assert.IsTrue(recorder.StartRecording());
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, new Vector3(1f, 2f, 3f), 1));
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, new Vector3(4f, 5f, 6f), 2));
+                recorder.StopRecording();
+
+                var path = recorder.ActiveOutputPath;
+                Assert.IsTrue(File.Exists(path));
+                Assert.AreEqual(extension, Path.GetExtension(path));
+                var info = SkeletonRecordingReader.ReadInfo(path);
+                Assert.AreEqual(format, info.Format);
+                Assert.AreEqual(HumanPoseSkeleton33.Definition.Id, info.Definition.Id);
+                Assert.AreEqual(2, info.FrameCount);
+
+                using (var reader = SkeletonRecordingReader.Open(path))
+                {
+                    Assert.IsTrue(reader.TryReadNextFrame(out var first));
+                    Assert.IsTrue(reader.TryReadNextFrame(out var second));
+                    Assert.IsFalse(reader.TryReadNextFrame(out _));
+                    Assert.AreEqual(0, first.RecordIndex);
+                    Assert.AreEqual(1, second.RecordIndex);
+                    Assert.IsTrue(second.Frame.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
+                    Assert.AreEqual(new Vector3(4f, 5f, 6f), wrist);
+                }
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                TryDeleteDirectory(folder);
+            }
+        }
+
+        [Test]
+        public void SkeletonPoseRecorderCreatesUniqueFilesForRepeatedRecordings()
+        {
+            var folder = CreateTempRecordingFolder();
+            var gameObject = new GameObject("SkeletonPoseRecorderUniqueFileTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var recorder = gameObject.AddComponent<SkeletonPoseRecorder>();
+            SetPrivateField(recorder, "source", source);
+            SetPrivateField(recorder, "sourceMode", SkeletonRecorderSourceMode.ProviderOutput);
+            SetPrivateField(recorder, "recordingFormat", SkeletonRecordingFormat.JsonLines);
+            SetPrivateField(recorder, "recordingFolder", folder);
+
+            try
+            {
+                gameObject.SetActive(true);
+                Assert.IsTrue(recorder.StartRecording());
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one, 1));
+                recorder.StopRecording();
+                var firstPath = recorder.ActiveOutputPath;
+
+                Assert.IsTrue(recorder.StartRecording());
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 2f, 2));
+                recorder.StopRecording();
+                var secondPath = recorder.ActiveOutputPath;
+
+                Assert.AreNotEqual(firstPath, secondPath);
+                Assert.IsTrue(File.Exists(firstPath));
+                Assert.IsTrue(File.Exists(secondPath));
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                TryDeleteDirectory(folder);
+            }
+        }
+
+        [Test]
+        public void SkeletonPoseRecorderTreatsSelectedFolderWithDotAsFolder()
+        {
+            var folder = Path.Combine(
+                Path.GetTempPath(),
+                $"hex_pose_recordings_{Guid.NewGuid():N}.v1");
+            Directory.CreateDirectory(folder);
+            var gameObject = new GameObject("SkeletonPoseRecorderFolderPathTest");
+            var recorder = gameObject.AddComponent<SkeletonPoseRecorder>();
+
+            try
+            {
+                recorder.SetRecordingFolder(folder);
+
+                Assert.AreEqual(folder, recorder.RecordingFolder);
+
+                var legacyFilePath = Path.Combine(folder, "legacy.hexpose.jsonl");
+                recorder.SetOutputPath(legacyFilePath);
+
+                Assert.AreEqual(folder, recorder.RecordingFolder);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                TryDeleteDirectory(folder);
+            }
+        }
+
+        [Test]
+        public void SkeletonPosePlaybackPublishesRecordedFramesThroughProviderContract()
+        {
+            var folder = CreateTempRecordingFolder();
+            var gameObject = new GameObject("SkeletonPosePlaybackTest");
+            gameObject.SetActive(false);
+            var source = gameObject.AddComponent<TestSkeletonProvider>();
+            var recorder = gameObject.AddComponent<SkeletonPoseRecorder>();
+            var playback = gameObject.AddComponent<SkeletonPosePlayback>();
+            SetPrivateField(recorder, "source", source);
+            SetPrivateField(recorder, "sourceMode", SkeletonRecorderSourceMode.ProviderOutput);
+            SetPrivateField(recorder, "recordingFormat", SkeletonRecordingFormat.JsonLines);
+            SetPrivateField(recorder, "recordingFolder", folder);
+
+            var received = default(SkeletonFrame);
+            var receivedCount = 0;
+            ((ISkeletonProvider)playback).PoseReceived += frame =>
+            {
+                received = frame;
+                receivedCount++;
+            };
+
+            try
+            {
+                gameObject.SetActive(true);
+                Assert.IsTrue(recorder.StartRecording());
+                source.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one, 1));
+                recorder.StopRecording();
+                SetPrivateField(playback, "recordingPath", recorder.ActiveOutputPath);
+
+                Assert.IsTrue(playback.Load());
+                playback.Seek(0.0);
+
+                Assert.AreEqual(1, receivedCount);
+                Assert.IsTrue(((ISkeletonProvider)playback).TryGetLatestPose(out var latest));
+                Assert.AreEqual(received.SequenceNumber, latest.SequenceNumber);
+                Assert.IsTrue(latest.TryGetJoint(BodyJoints.LeftWrist, out var wrist));
+                Assert.AreEqual(Vector3.one, wrist);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+                TryDeleteDirectory(folder);
+            }
+        }
+
+        [Test]
+        public void SkeletonProviderSwitcherRoutesOnlyActiveProvider()
+        {
+            var gameObject = new GameObject("SkeletonProviderSwitcherTest");
+            gameObject.SetActive(false);
+            var primary = gameObject.AddComponent<TestSkeletonProvider>();
+            var secondary = gameObject.AddComponent<TestSkeletonProvider>();
+            var switcher = gameObject.AddComponent<SkeletonProviderSwitcher>();
+            SetPrivateField(switcher, "primaryProvider", primary);
+            SetPrivateField(switcher, "secondaryProvider", secondary);
+
+            var receivedSequence = 0;
+            var receivedCount = 0;
+            ((ISkeletonProvider)switcher).PoseReceived += frame =>
+            {
+                receivedSequence = frame.SequenceNumber;
+                receivedCount++;
+            };
+
+            try
+            {
+                gameObject.SetActive(true);
+                primary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.zero, 1));
+                switcher.UseSecondary();
+                primary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one, 2));
+                secondary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 2f, 3));
+
+                Assert.AreEqual(2, receivedCount);
+                Assert.AreEqual(3, receivedSequence);
+                Assert.IsTrue(((ISkeletonProvider)switcher).TryGetLatestPose(out var latest));
+                Assert.AreEqual(3, latest.SequenceNumber);
+            }
+            finally
+            {
+                UnityEngine.Object.DestroyImmediate(gameObject);
+            }
         }
 
         [Test]
@@ -1400,6 +1643,34 @@ namespace HEXLab.Hextrackingconnector.Tests
                 tracked,
                 sequenceNumber,
                 receivedTime: sequenceNumber);
+        }
+
+        private static string CreateTempRecordingFolder()
+        {
+            var folder = Path.Combine(
+                Path.GetTempPath(),
+                $"hex_pose_recordings_{Guid.NewGuid():N}");
+            Directory.CreateDirectory(folder);
+            return folder;
+        }
+
+        private static void TryDeleteDirectory(string path)
+        {
+            if (string.IsNullOrWhiteSpace(path) || !Directory.Exists(path))
+            {
+                return;
+            }
+
+            try
+            {
+                Directory.Delete(path, recursive: true);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
         }
 
         private static SkeletonFrame CreateStandingHumanPoseFrame()
