@@ -8,6 +8,7 @@ namespace HEXLab.Hextrackingconnector
     {
         [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour primaryProvider;
         [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour secondaryProvider;
+        [SerializeField, SkeletonProvider(allowSelf: false)] private MonoBehaviour tertiaryProvider;
         [SerializeField] private SkeletonProviderSwitchSelection activeSource = SkeletonProviderSwitchSelection.Primary;
         [SerializeField] private bool publishLatestOnSwitch;
 
@@ -35,9 +36,8 @@ namespace HEXLab.Hextrackingconnector
 
         public MonoBehaviour PrimaryProvider => primaryProvider;
         public MonoBehaviour SecondaryProvider => secondaryProvider;
-        public MonoBehaviour ActiveProviderComponent => activeSource == SkeletonProviderSwitchSelection.Primary
-            ? primaryProvider
-            : secondaryProvider;
+        public MonoBehaviour TertiaryProvider => tertiaryProvider;
+        public MonoBehaviour ActiveProviderComponent => GetProviderComponent(activeSource);
 
         public bool TryGetLatestPose(out SkeletonFrame pose)
         {
@@ -79,14 +79,16 @@ namespace HEXLab.Hextrackingconnector
             ActiveSource = SkeletonProviderSwitchSelection.Secondary;
         }
 
+        public void UseTertiary()
+        {
+            ActiveSource = SkeletonProviderSwitchSelection.Tertiary;
+        }
+
         private void Reconnect()
         {
             Unsubscribe();
 
-            var component = activeSource == SkeletonProviderSwitchSelection.Primary
-                ? primaryProvider
-                : secondaryProvider;
-
+            var component = GetProviderComponent(activeSource);
             if (component == null)
             {
                 return;
@@ -135,6 +137,20 @@ namespace HEXLab.Hextrackingconnector
         private void RaisePoseReceived(SkeletonFrame frame)
         {
             SkeletonProviderUtility.RaisePoseReceived(PoseReceived, frame, this);
+        }
+
+        private MonoBehaviour GetProviderComponent(SkeletonProviderSwitchSelection source)
+        {
+            switch (source)
+            {
+                case SkeletonProviderSwitchSelection.Secondary:
+                    return secondaryProvider;
+                case SkeletonProviderSwitchSelection.Tertiary:
+                    return tertiaryProvider;
+                case SkeletonProviderSwitchSelection.Primary:
+                default:
+                    return primaryProvider;
+            }
         }
     }
 }

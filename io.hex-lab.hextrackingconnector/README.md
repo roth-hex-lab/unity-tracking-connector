@@ -41,6 +41,39 @@ Communication/CommServer
 
 The reusable `Visuals` and robot prefabs intentionally leave some provider fields unassigned. When you drag them into a new scene, assign their source/provider fields to the provider block you want to consume.
 
+## Standalone MediaPipe Pose Tracking
+
+Embedded MediaPipe support is optional. The connector package does not vendor Homuler MediaPipe or make it a hard dependency, so the existing external pipe/UDP workflow continues to compile unchanged.
+
+To enable local pose detection in a Unity project:
+
+1. Run `Tools > HEX Tracking Connector > Install Or Uninstall Local MediaPipe`.
+2. Review the source project link, release archive link, download size, and generated-package note in the setup window.
+3. Optionally open `Advanced Model Selection`. The three Pose Landmarker task models used by `LocalLandmarkProvider` are required and always kept; other Homuler models are stripped unless selected.
+4. Click `Install`. The installer downloads `com.github.homuler.mediapipe-0.16.3.tgz` from the Homuler GitHub release, extracts it into `Packages/com.github.homuler.mediapipe` as an embedded package, removes samples, tests, and unused model files, moves the retained models into package `Resources`, copies the connector's `LocalLandmarkProvider` integration into that embedded package, and deletes the temporary archive.
+5. Run `Tools > HEX Tracking Connector > Validate Local MediaPipe Setup` to open the validator window for package, native plugin, model, and build-setting checks.
+6. Add `LocalLandmarkProvider` to a scene and use it anywhere an `ISkeletonProvider` is accepted.
+
+The generated `Packages/com.github.homuler.mediapipe` folder is intentionally a stripped embedded package, not the full Homuler release. Commit it together with `Packages/packages-lock.json` when a Unity project should open with local MediaPipe already installed after clone. If another Homuler model is needed later, uninstall and install again with that model selected in the advanced section, then commit the updated embedded package.
+
+`LocalLandmarkProvider` reads from a Unity `WebCamTexture`, runs Homuler's `PoseLandmarker` locally, maps `poseWorldLandmarks` into `HumanPoseSkeleton33`, and publishes regular `SkeletonFrame` objects. It also implements `ISkeletonCaptureSource`, so `SkeletonPoseRecorder` can capture its raw local frames just like it can capture `CommServer` frames.
+
+The `Camera Name` field is optional. Leave it empty to let Unity choose a matching camera from `WebCamTexture.devices`; only fill it when you need a specific device and know its exact Unity device name. The default coordinate conversion inverts MediaPipe world X, Y, and Z so local world landmarks match the same Unity-facing convention expected from the external Python sender.
+
+Recommended local pipeline:
+
+```text
+LocalLandmarkProvider -> SkeletonSmoothing -> BodyCalibration -> consumers
+```
+
+For mobile builds, make sure:
+
+- `Packages/com.github.homuler.mediapipe/PackageResources/Resources/MediaPipe/pose_landmarker_lite.bytes`, `pose_landmarker_full.bytes`, and `pose_landmarker_heavy.bytes` exist.
+- iOS has a Camera Usage Description in Player Settings.
+- Android/iOS permissions are tested on device, not only in the editor.
+- Start with the CPU delegate; enable the GPU delegate only after the Homuler native plugin is verified for the target device.
+- If another native plugin also ships `libc++_shared.so` on Android, resolve the duplicate-library conflict during the build.
+
 ## Reading Pose Data
 
 Prefer depending on `ISkeletonProvider`, not directly on `CommServer`. That lets your script use raw, smoothed, converted, or calibrated data without changing code.
@@ -93,12 +126,13 @@ Use `TryGetJoint(...)` for position-only code. Use `TryGetJointPose(...)` when y
 | Block | Role | Input | Output | Use When |
 |---|---|---|---|---|
 | `CommServer` | Receives framed JSON from Python over named pipe or UDP and maps wire landmark indices to named Unity joints. | External process. | `HumanPoseSkeleton33` by default. | You need the live tracker connection. |
+| `LocalLandmarkProvider` | Runs Homuler MediaPipe Pose Landmarker in Unity from a local camera. | `WebCamTexture`. | `HumanPoseSkeleton33`. | You need standalone pose tracking for demos, mobile deployment, or offline testing. |
 | `SkeletonSmoothing` | Smooths positions over recent frames. | Any `ISkeletonProvider`. | Same skeleton definition as input. | Tracking jitter should be reduced before calibration or visualization. |
 | `SkeletonConverter` | Converts a frame to another supported skeleton definition. | Any `ISkeletonProvider`. | Source, `HumanPoseSkeleton33`, `CocoPose17`, or `UnityHumanoidControl`. | A consumer expects a smaller skeleton or humanoid-control pose. |
 | `BodyCalibration` | Applies an additive offset so the body is centered and optionally grounded. | Any `ISkeletonProvider`. | Same skeleton definition as input. | Multiple consumers should share the same calibrated pose. |
 | `SkeletonPoseRecorder` | Stores frames from a provider output or capture source. | Any `ISkeletonProvider`, or `ISkeletonCaptureSource` for high-fidelity CommServer capture. | Recording file. | You want JSONL debug captures or compact binary pose streams. |
 | `SkeletonPosePlayback` | Replays stored pose recordings. | Recording file. | Recorded `SkeletonFrame` stream. | You want deterministic replay, demos, tests, or offline visualization. |
-| `SkeletonProviderSwitcher` | Routes one selected provider to consumers. | Two `ISkeletonProvider` inputs. | Selected provider stream. | You want to switch between live and replay sources without reassigning consumers. |
+| `SkeletonProviderSwitcher` | Routes one selected provider to consumers. | Up to three `ISkeletonProvider` inputs. | Selected provider stream. | You want to switch between external live tracking, local MediaPipe tracking, and replay without reassigning consumers. |
 | `BodyDebugVis` | Draws joints, debug line strips, and optional head pose. | Any `ISkeletonProvider`. | Visual output only. | You want to inspect incoming or processed tracking data. |
 | `DirectHumanoidBoneDriver` | Applies humanoid-control frames to a Unity humanoid `Animator`. | `UnityHumanoidControl` frames, or compatible frames when retargeting is enabled. | Avatar motion. | You want to drive a humanoid avatar directly from tracking data. |
 
@@ -139,10 +173,11 @@ Use `SkeletonPosePlayback` as a normal provider:
 SkeletonPosePlayback -> SkeletonSmoothing -> SkeletonConverter -> BodyCalibration -> consumers
 ```
 
-For live/replay switching, put `SkeletonProviderSwitcher` before consumers:
+For live/local/replay switching, put `SkeletonProviderSwitcher` before consumers:
 
 ```text
-Live provider      -> SkeletonProviderSwitcher -> consumers
+External provider  -> SkeletonProviderSwitcher -> consumers
+Local provider     -> SkeletonProviderSwitcher
 Playback provider  -> SkeletonProviderSwitcher
 ```
 
@@ -230,9 +265,10 @@ When `CommServer.InputSkeleton` is `Auto`, incoming `skeleton_id` values are res
 | `Runtime/Skeleton/Definitions` | Built-in anatomical skeleton definitions. |
 | `Runtime/Skeleton/Providers` | Pipeline blocks such as smoothing, conversion, and calibration. |
 | `Runtime/Skeleton/Humanoid` | Unity humanoid control definition, retargeting, and avatar driver. |
+| `Runtime/MediaPipe` | Non-compiled templates for the optional Homuler-backed local pose provider. The installer copies them into the embedded MediaPipe package. |
 | `Runtime/Recording` | Pose recording, playback, JSONL and binary storage. |
 | `Runtime/Visualization` | Debug body visualization and generated debug materials. |
-| `Editor` | Inspector tooling for provider validation, pipeline flow display, and component editors. |
+| `Editor` | Inspector tooling for provider validation, pipeline flow display, component editors, and optional MediaPipe setup. |
 | `Samples/Demo` | Example scene with communication, smoothing, calibration, visualization, and robot avatar setup. |
 | `Samples~/Recordings` | Package Manager sample folder for example pose recordings. |
 

@@ -51,5 +51,6 @@ namespace HEXLab.Hextrackingconnector
     {
         Primary,
         Secondary,
+        Tertiary,
     }
 }

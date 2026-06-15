@@ -26,25 +26,30 @@ namespace HEXLab.Hextrackingconnector.Editor.Tests
         {
             var primaryObject = new GameObject("PrimarySource");
             var secondaryObject = new GameObject("SecondarySource");
+            var tertiaryObject = new GameObject("TertiarySource");
             var switcherObject = new GameObject("Switcher");
             var primary = primaryObject.AddComponent<TestSkeletonProvider>();
             var secondary = secondaryObject.AddComponent<TestSkeletonProvider>();
+            var tertiary = tertiaryObject.AddComponent<TestSkeletonProvider>();
             var switcher = switcherObject.AddComponent<SkeletonProviderSwitcher>();
             SetPrivateField(switcher, "primaryProvider", primary);
             SetPrivateField(switcher, "secondaryProvider", secondary);
-            SetPrivateField(switcher, "activeSource", SkeletonProviderSwitchSelection.Secondary);
+            SetPrivateField(switcher, "tertiaryProvider", tertiary);
+            SetPrivateField(switcher, "activeSource", SkeletonProviderSwitchSelection.Tertiary);
 
             try
             {
                 var flow = AnalyzeFlow(switcher);
 
-                StringAssert.Contains("SecondarySource", flow);
+                StringAssert.Contains("TertiarySource", flow);
                 StringAssert.DoesNotContain("PrimarySource", flow);
+                StringAssert.DoesNotContain("SecondarySource", flow);
             }
             finally
             {
                 UnityEngine.Object.DestroyImmediate(primaryObject);
                 UnityEngine.Object.DestroyImmediate(secondaryObject);
+                UnityEngine.Object.DestroyImmediate(tertiaryObject);
                 UnityEngine.Object.DestroyImmediate(switcherObject);
             }
         }

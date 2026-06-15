@@ -27,6 +27,11 @@ namespace HEXLab.Hextrackingconnector.Editor
                 {
                     switcher.UseSecondary();
                 }
+
+                if (GUILayout.Button("Use Tertiary"))
+                {
+                    switcher.UseTertiary();
+                }
             }
         }
     }

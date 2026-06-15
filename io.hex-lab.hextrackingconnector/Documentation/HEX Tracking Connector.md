@@ -28,7 +28,7 @@ https://github.com/roth-hex-lab/unity-tracking-connector.git?path=/io.hex-lab.he
 | `BodyCalibration` | Applies a shared additive calibration offset for centering and grounding. |
 | `SkeletonPoseRecorder` | Records provider output or high-fidelity CommServer capture streams to JSONL or binary files. |
 | `SkeletonPosePlayback` | Replays recorded pose streams as an `ISkeletonProvider`. |
-| `SkeletonProviderSwitcher` | Switches consumers between two provider sources, such as live tracking and playback. |
+| `SkeletonProviderSwitcher` | Switches consumers between up to three provider sources, such as external live tracking, local MediaPipe tracking, and playback. |
 | `BodyDebugVis` | Draws a line-art skeleton for inspection. |
 | `DirectHumanoidBoneDriver` | Drives a humanoid `Animator` from humanoid-control skeleton frames. |
 

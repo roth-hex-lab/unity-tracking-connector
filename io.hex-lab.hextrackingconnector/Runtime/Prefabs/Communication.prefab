@@ -50,7 +50,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonProviderSwitcher
   primaryProvider: {fileID: 7801181246178537890}
   secondaryProvider: {fileID: 3976285574979983094}
-  activeSource: 1
+  tertiaryProvider: {fileID: 0}
+  activeSource: 0
   publishLatestOnSwitch: 0
 --- !u!114 &7801181246178537890
 MonoBehaviour:
@@ -64,7 +65,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: b535c0730b0f404e8fb13005895b422b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.CommServer
-  transportMode: 0
+  transportMode: 1
   pipeName: UnityMediaPipeBody
   udpPort: 5000
   inputSkeleton: 0
@@ -83,10 +84,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7bd67d8170e4694bf2baf575960b210, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonPoseRecorder
-  source: {fileID: 0}
-  sourceMode: 0
+  source: {fileID: 7801181246178537890}
+  sourceMode: 1
   recordingFormat: 0
-  outputPath: 
+  recordingFolder: ./Recordings
   recordOnStart: 0
   maxDurationSeconds: 0
   maxFrameCount: 0

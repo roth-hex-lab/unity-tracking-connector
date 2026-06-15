@@ -852,9 +852,11 @@ namespace HEXLab.Hextrackingconnector.Tests
             gameObject.SetActive(false);
             var primary = gameObject.AddComponent<TestSkeletonProvider>();
             var secondary = gameObject.AddComponent<TestSkeletonProvider>();
+            var tertiary = gameObject.AddComponent<TestSkeletonProvider>();
             var switcher = gameObject.AddComponent<SkeletonProviderSwitcher>();
             SetPrivateField(switcher, "primaryProvider", primary);
             SetPrivateField(switcher, "secondaryProvider", secondary);
+            SetPrivateField(switcher, "tertiaryProvider", tertiary);
 
             var receivedSequence = 0;
             var receivedCount = 0;
@@ -871,11 +873,15 @@ namespace HEXLab.Hextrackingconnector.Tests
                 switcher.UseSecondary();
                 primary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one, 2));
                 secondary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 2f, 3));
+                switcher.UseTertiary();
+                primary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 3f, 4));
+                secondary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 4f, 5));
+                tertiary.Publish(CreateFrame(BodyJoints.LeftWrist, Vector3.one * 5f, 6));
 
-                Assert.AreEqual(2, receivedCount);
-                Assert.AreEqual(3, receivedSequence);
+                Assert.AreEqual(3, receivedCount);
+                Assert.AreEqual(6, receivedSequence);
                 Assert.IsTrue(((ISkeletonProvider)switcher).TryGetLatestPose(out var latest));
-                Assert.AreEqual(3, latest.SequenceNumber);
+                Assert.AreEqual(6, latest.SequenceNumber);
             }
             finally
             {

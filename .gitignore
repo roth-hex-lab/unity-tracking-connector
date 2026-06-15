@@ -1,2 +1,7 @@
 **/.idea/*
 .vscode/settings.json
+**/Packages/.hextrackingconnector/
+**/Packages/com.github.homuler.mediapipe.installing/
+ConnectorDev/Assets/StreamingAssets.meta
+**/Assets/StreamingAssets/MediaPipe.meta
+**/Assets/StreamingAssets/MediaPipe/
