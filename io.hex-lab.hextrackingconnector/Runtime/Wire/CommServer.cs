@@ -229,15 +229,40 @@ namespace HEXLab.Hextrackingconnector
                        pipeName,
                        PipeDirection.InOut,
                        1,
-                       PipeTransmissionMode.Message))
+                       PipeTransmissionMode.Message,
+                       PipeOptions.Asynchronous))
             {
                 lock (transportLock)
                 {
+                    if (!isRunning) return;
                     pipeServer = server;
                 }
 
                 LogConnection($"Waiting for pipe connection on '{pipeName}'...");
-                server.WaitForConnection();
+                // Begin waiting asynchronously
+                var asyncResult = server.BeginWaitForConnection(null, null);
+
+                // Wait 100ms at a time. If Unity stops play mode, isRunning becomes false, and we break out instantly.
+                while (isRunning && !asyncResult.AsyncWaitHandle.WaitOne(100))
+                {
+                }
+
+                // If we broke out because Unity is shutting down, exit the thread cleanly right now.
+                if (!isRunning)
+                {
+                    return;
+                }
+
+                // Otherwise, the connection succeeded. Finalize it.
+                try
+                {
+                    server.EndWaitForConnection(asyncResult);
+                }
+                catch (Exception)
+                {
+                    return;
+                }
+
                 LogConnection("Connected via named pipe.");
 
                 using (var reader = new BinaryReader(server, Encoding.UTF8))
