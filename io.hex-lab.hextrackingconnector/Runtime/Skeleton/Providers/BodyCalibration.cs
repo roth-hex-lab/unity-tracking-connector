@@ -62,9 +62,7 @@ namespace HEXLab.Hextrackingconnector
 
         private void OnEnable()
         {
-            ResolveSkeletonProvider();
-            Subscribe();
-            TryCaptureProviderPose();
+            SetupProviderCapture();
         }
 
         private void OnDisable()
@@ -72,6 +70,20 @@ namespace HEXLab.Hextrackingconnector
             Unsubscribe();
         }
 
+        // Assigns the skeleton source at runtime, before this component is enabled
+        // (e.g. right after Instantiate, while the GameObject is still inactive).
+        // OnEnable resolves/subscribes from this field, so it must be set beforehand.
+        public void SetSkeletonProvider(MonoBehaviour provider)
+        {
+            skeletonProvider = provider;
+        }
+
+        public void SetupProviderCapture()
+        {
+            ResolveSkeletonProvider();
+            Subscribe();
+            TryCaptureProviderPose();
+        }
         public void Calibrate()
         {
             if (!CalibrateLastPose())
