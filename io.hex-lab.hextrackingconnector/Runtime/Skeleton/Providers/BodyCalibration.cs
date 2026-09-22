@@ -38,7 +38,8 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private BodyCalibrationMode calibrationMode = BodyCalibrationMode.CenterHips;
         [SerializeField] private Vector3 calibrationOffset = Vector3.zero;
         [SerializeField] private float groundHeight = 0f;
-
+        [SerializeField] private bool continuousGrounding = true;
+        [SerializeField] private float groundingSmoothSpeed = 15f;
         private ISkeletonProvider activeSkeletonProvider;
         private bool hasCalibration;
         private SkeletonDefinition lastDefinition;
@@ -153,6 +154,17 @@ namespace HEXLab.Hextrackingconnector
             {
                 calibratedFrame = default;
                 return false;
+            }
+
+            // NEW: Continuously track the lowest foot and adjust the Y offset
+            if (continuousGrounding && calibrationMode == BodyCalibrationMode.CenterHipsGroundFeet)
+            {
+                if (TryGetLowestFootY(sourceFrame.Definition, sourceFrame.CopyPositions(), sourceFrame.CopyTracked(), out var lowestFootY))
+                {
+                    float targetYOffset = groundHeight - lowestFootY;
+                    // Smooth the transition to prevent jitter when tracking is noisy
+                    calibrationOffset.y = Mathf.Lerp(calibrationOffset.y, targetYOffset, Time.deltaTime * groundingSmoothSpeed);
+                }
             }
 
             var jointPoses = sourceFrame.CopyJointPoses();

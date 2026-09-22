@@ -47,6 +47,9 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField, Min(0.001f)] private float maxAvatarFitScale = 4f;
         [Tooltip("Current effective uniform scale applied by Avatar Fit. Edit in Play Mode or set AvatarFitScale from code to override it.")]
         [SerializeField, Min(0.001f)] private float avatarFitScale = 1f;
+        [Header("Grounding Constraint")]
+        [SerializeField] private bool enforceFloorClamp = true;
+        [SerializeField] private float floorY = 0f;
 
         private readonly List<BoneBinding> bindings = new List<BoneBinding>();
 
@@ -92,9 +95,37 @@ namespace HEXLab.Hextrackingconnector
             if (hasLatestPose)
             {
                 ApplyPose(latestPose);
+
+                if (enforceFloorClamp)
+                {
+                    EnforceFloorClamp();
+                }
             }
         }
 
+        private void EnforceFloorClamp()
+        {
+            if (animator == null) return;
+
+            float lowestAvatarFootY = float.PositiveInfinity;
+
+            // Check the actual positions of the 3D avatar's foot bones
+            for (int i = 0; i < AvatarFitFootBones.Length; i++)
+            {
+                var footTransform = animator.GetBoneTransform(AvatarFitFootBones[i]);
+                if (footTransform != null)
+                {
+                    lowestAvatarFootY = Mathf.Min(lowestAvatarFootY, footTransform.position.y);
+                }
+            }
+
+            // If the lowest foot is below the floor, push the root up
+            if (lowestAvatarFootY < floorY)
+            {
+                float penetrationDepth = floorY - lowestAvatarFootY;
+                animator.transform.position += new Vector3(0, penetrationDepth, 0);
+            }
+        }
         private void OnValidate()
         {
             positionScale = Mathf.Max(0.001f, positionScale);
