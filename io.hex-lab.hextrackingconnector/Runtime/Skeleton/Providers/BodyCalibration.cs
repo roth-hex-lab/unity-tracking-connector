@@ -9,6 +9,7 @@ namespace HEXLab.Hextrackingconnector
         None,
         CenterHips,
         CenterHipsGroundFeet,
+        GroundFeet,
     }
 
 #pragma warning disable 0649
@@ -34,26 +35,46 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private bool publishCalibratedPose = true;
 
         [Header("Calibration")]
-        [SerializeField] private bool autoCalibrate = true;
-        [SerializeField] private BodyCalibrationMode calibrationMode = BodyCalibrationMode.CenterHips;
+        [Tooltip("Calibrate once when the first usable pose arrives. A successful manual calibration also satisfies this step.")]
+        [SerializeField, FormerlySerializedAs("autoCalibrate")] private bool calibrateOnFirstPose = true;
+        [SerializeField, FormerlySerializedAs("calibrationMode")] private BodyCalibrationMode initialCalibrationMode = BodyCalibrationMode.CenterHipsGroundFeet;
+        [Tooltip("Update the selected calibration on each new source pose. Ground Feet preserves the horizontal offset.")]
+        [SerializeField, FormerlySerializedAs("continuousGrounding")] private bool continuousCalibration = true;
+        [SerializeField] private BodyCalibrationMode continuousCalibrationMode = BodyCalibrationMode.GroundFeet;
+        [SerializeField] private bool smoothContinuousCalibration;
+        [Tooltip("Exponential response time in seconds. Smaller values follow changes faster. Initial and manual calibration are always immediate.")]
+        [SerializeField, Min(0.001f)] private float continuousSmoothingTime = 0.1f;
+        [SerializeField] private float groundHeight;
         [SerializeField] private Vector3 calibrationOffset = Vector3.zero;
-        [SerializeField] private float groundHeight = 0f;
-        [SerializeField] private bool continuousGrounding = true;
-        [SerializeField] private float groundingSmoothSpeed = 15f;
+
         private ISkeletonProvider activeSkeletonProvider;
+        private MonoBehaviour boundProvider;
+        private bool hasBoundProvider;
+        private Action<SkeletonFrame> sourceHandler;
+        private int subscriptionVersion;
+        // Callbacks may synchronously reset calibration, change providers, or deliver another pose.
+        private int stateVersion;
         private bool hasCalibration;
-        private SkeletonDefinition lastDefinition;
-        private Vector3[] lastPositions;
-        private bool[] lastTracked;
-        private bool hasPose;
+        private bool initialCalibrationComplete;
         private SkeletonFrame lastSourceFrame;
         private bool hasSourceFrame;
         private SkeletonFrame latestPose;
         private bool hasLatestPose;
+        private double lastPoseTime;
+        private PoseClock lastPoseClock;
+        private bool hasPoseTime;
 
-        public bool AutoCalibrate => autoCalibrate;
+        private enum PoseClock { Source, Received, Realtime }
+
+        public bool CalibrateOnFirstPose => calibrateOnFirstPose;
+        public BodyCalibrationMode InitialCalibrationMode => initialCalibrationMode;
+        public bool ContinuousCalibration => continuousCalibration;
+        public BodyCalibrationMode ContinuousCalibrationMode => continuousCalibrationMode;
         public bool HasCalibration => hasCalibration;
-        public BodyCalibrationMode CalibrationMode => calibrationMode;
+        [Obsolete("Use CalibrateOnFirstPose instead.")]
+        public bool AutoCalibrate => calibrateOnFirstPose;
+        [Obsolete("Use InitialCalibrationMode instead.")]
+        public BodyCalibrationMode CalibrationMode => initialCalibrationMode;
         public float GroundHeight => groundHeight;
         public Vector3 CalibrationOffset => calibrationOffset;
         public bool PublishCalibratedPose => publishCalibratedPose;
@@ -76,7 +97,12 @@ namespace HEXLab.Hextrackingconnector
         {
             if (ReferenceEquals(skeletonProvider, provider)) return;
             Unsubscribe();
+            var version = subscriptionVersion;
             skeletonProvider = provider;
+            boundProvider = provider;
+            hasBoundProvider = true;
+            ClearSourceState();
+            if (version != subscriptionVersion) return;
             if (isActiveAndEnabled) SetupProviderCapture();
         }
 
@@ -84,27 +110,48 @@ namespace HEXLab.Hextrackingconnector
         {
             Unsubscribe();
             if (!isActiveAndEnabled) return;
+            var version = subscriptionVersion;
             ResolveSkeletonProvider();
+            var providerChanged = hasBoundProvider && !ReferenceEquals(boundProvider, skeletonProvider);
+            boundProvider = skeletonProvider;
+            hasBoundProvider = true;
+            if (providerChanged) ClearSourceState();
+            if (version != subscriptionVersion) return;
             Subscribe();
-            TryCaptureProviderPose();
-        }
-        public void Calibrate()
-        {
-            if (!CalibrateLastPose())
+            if (activeSkeletonProvider != null && activeSkeletonProvider.TryGetLatestPose(out var frame))
             {
-                Debug.LogWarning("BodyCalibration could not calibrate because no usable source pose is available yet.", this);
-                return;
+                ProcessSourceFrame(frame);
+            }
+        }
+
+        public bool Calibrate(BodyCalibrationMode mode)
+        {
+            var version = ++stateVersion;
+            if (activeSkeletonProvider != null && activeSkeletonProvider.TryGetLatestPose(out var frame))
+            {
+                if (!CacheSourceFrame(frame)) return false;
             }
 
-            RepublishLatestSourcePose();
+            if (!hasSourceFrame || !TryUpdateCalibration(lastSourceFrame.Definition,
+                    lastSourceFrame.CopyPositions(), lastSourceFrame.CopyTracked(), mode, 1f, completesInitial: true))
+            {
+                Debug.LogWarning("BodyCalibration could not calibrate because no usable source pose is available yet.", this);
+                return false;
+            }
+
+            if (version == stateVersion) RepublishLatestSourcePose();
+            return true;
         }
 
         public void ResetCalibration()
         {
+            var version = ++stateVersion;
             calibrationOffset = Vector3.zero;
             hasCalibration = false;
+            initialCalibrationComplete = false;
+            hasPoseTime = false;
             CalibrationChanged?.Invoke();
-            RepublishLatestSourcePose();
+            if (version == stateVersion) RepublishLatestSourcePose();
         }
 
         public bool TryGetLatestPose(out SkeletonFrame pose)
@@ -113,61 +160,28 @@ namespace HEXLab.Hextrackingconnector
             return hasLatestPose;
         }
 
-        public bool Calibrate(Vector3[] positions, bool[] tracked)
+        public bool Calibrate(Vector3[] positions, bool[] tracked, BodyCalibrationMode mode)
         {
-            return Calibrate(HumanPoseSkeleton33.Definition, positions, tracked);
+            return Calibrate(HumanPoseSkeleton33.Definition, positions, tracked, mode);
         }
 
-        public bool Calibrate(SkeletonDefinition definition, Vector3[] positions, bool[] tracked)
+        public bool Calibrate(SkeletonDefinition definition, Vector3[] positions, bool[] tracked, BodyCalibrationMode mode)
         {
-            definition = definition ?? HumanPoseSkeleton33.Definition;
-            if (!TryCalculateOffset(definition, positions, tracked, calibrationMode, groundHeight, out var offset))
-            {
-                return false;
-            }
-
-            calibrationOffset = offset;
-            hasCalibration = true;
-            CalibrationChanged?.Invoke();
-            return true;
+            stateVersion++;
+            return TryUpdateCalibration(definition, positions, tracked, mode, 1f, completesInitial: true);
         }
 
-        public bool Calibrate(SkeletonFrame frame)
+        public bool Calibrate(SkeletonFrame frame, BodyCalibrationMode mode)
         {
-            if (!TryCalculateOffset(
-                    frame.Definition,
-                    frame.CopyPositions(),
-                    frame.CopyTracked(),
-                    calibrationMode,
-                    groundHeight,
-                    out var offset))
-            {
-                return false;
-            }
-
-            calibrationOffset = offset;
-            hasCalibration = true;
-            CalibrationChanged?.Invoke();
-            return true;
+            return Calibrate(frame.Definition, frame.CopyPositions(), frame.CopyTracked(), mode);
         }
 
         public bool TryApply(SkeletonFrame sourceFrame, out SkeletonFrame calibratedFrame)
         {
-            if (sourceFrame.Definition == null)
+            if (sourceFrame.JointCount == 0)
             {
                 calibratedFrame = default;
                 return false;
-            }
-
-            // NEW: Continuously track the lowest foot and adjust the Y offset
-            if (continuousGrounding && calibrationMode == BodyCalibrationMode.CenterHipsGroundFeet)
-            {
-                if (TryGetLowestFootY(sourceFrame.Definition, sourceFrame.CopyPositions(), sourceFrame.CopyTracked(), out var lowestFootY))
-                {
-                    float targetYOffset = groundHeight - lowestFootY;
-                    // Smooth the transition to prevent jitter when tracking is noisy
-                    calibrationOffset.y = Mathf.Lerp(calibrationOffset.y, targetYOffset, Time.deltaTime * groundingSmoothSpeed);
-                }
             }
 
             var jointPoses = sourceFrame.CopyJointPoses();
@@ -209,13 +223,6 @@ namespace HEXLab.Hextrackingconnector
             if (!HasValidPoseArrays(definition, sourcePositions, sourceTracked, destinationPositions))
             {
                 return;
-            }
-
-            CachePose(definition, sourcePositions, sourceTracked);
-
-            if (autoCalibrate && !hasCalibration)
-            {
-                Calibrate(definition, sourcePositions, sourceTracked);
             }
 
             for (int i = 0; i < definition.JointCount; i++)
@@ -282,7 +289,19 @@ namespace HEXLab.Hextrackingconnector
             if (positions == null ||
                 tracked == null ||
                 positions.Length < definition.JointCount ||
-                tracked.Length < definition.JointCount ||
+                tracked.Length < definition.JointCount)
+            {
+                return false;
+            }
+
+            if (mode == BodyCalibrationMode.GroundFeet)
+            {
+                if (!TryGetLowestFootY(definition, positions, tracked, out var lowestY)) return false;
+                offset.y = groundHeight - lowestY;
+                return true;
+            }
+
+            if ((mode != BodyCalibrationMode.CenterHips && mode != BodyCalibrationMode.CenterHipsGroundFeet) ||
                 !TryGetHipCentre(definition, positions, tracked, out var hipCentre))
             {
                 return false;
@@ -333,55 +352,118 @@ namespace HEXLab.Hextrackingconnector
             }
         }
 
-        private bool CalibrateLastPose()
+        private bool TryUpdateCalibration(SkeletonDefinition definition, Vector3[] positions, bool[] tracked,
+            BodyCalibrationMode mode, float blend, bool completesInitial = false)
         {
-            TryCaptureProviderPose();
-
-            if (hasSourceFrame && Calibrate(lastSourceFrame))
+            if (!TryCalculateOffset(definition, positions, tracked, mode, groundHeight, out var target))
             {
-                return true;
+                return false;
             }
 
-            return hasPose && Calibrate(lastDefinition, lastPositions, lastTracked);
+            if (mode == BodyCalibrationMode.GroundFeet)
+            {
+                target.x = calibrationOffset.x;
+                target.z = calibrationOffset.z;
+            }
+
+            var offset = Vector3.Lerp(calibrationOffset, target, blend);
+            var changed = !hasCalibration || offset != calibrationOffset;
+            calibrationOffset = offset;
+            hasCalibration = true;
+            if (completesInitial) initialCalibrationComplete = true;
+            if (changed) CalibrationChanged?.Invoke();
+            return true;
         }
 
         private void Subscribe()
         {
             if (activeSkeletonProvider != null)
             {
-                activeSkeletonProvider.PoseReceived += OnSourcePoseReceived;
+                var version = subscriptionVersion;
+                sourceHandler = frame =>
+                {
+                    if (this != null && isActiveAndEnabled && version == subscriptionVersion)
+                    {
+                        ProcessSourceFrame(frame);
+                    }
+                };
+                activeSkeletonProvider.PoseReceived += sourceHandler;
             }
         }
 
         private void Unsubscribe()
         {
+            subscriptionVersion++;
+            stateVersion++;
             if (activeSkeletonProvider != null)
             {
-                activeSkeletonProvider.PoseReceived -= OnSourcePoseReceived;
+                activeSkeletonProvider.PoseReceived -= sourceHandler;
             }
 
+            sourceHandler = null;
             activeSkeletonProvider = null;
         }
 
-        private void OnSourcePoseReceived(SkeletonFrame frame)
+        private void ProcessSourceFrame(SkeletonFrame frame)
         {
-            CachePose(frame);
+            if (frame.JointCount == 0 || IsLastSourceFrame(frame)) return;
+            var version = ++stateVersion;
+            if (!CacheSourceFrame(frame)) return;
+            var blend = GetContinuousBlend(frame);
+            var positions = frame.CopyPositions();
+            var tracked = frame.CopyTracked();
 
-            if (autoCalibrate && !hasCalibration)
+            var initialized = false;
+            if (calibrateOnFirstPose && !initialCalibrationComplete &&
+                TryUpdateCalibration(frame.Definition, positions, tracked, initialCalibrationMode, 1f, completesInitial: true))
             {
-                Calibrate(frame);
+                initialized = true;
+            }
+            if (version != stateVersion) return;
+
+            if (continuousCalibration && !initialized)
+            {
+                TryUpdateCalibration(frame.Definition, positions, tracked, continuousCalibrationMode, blend);
             }
 
+            if (version != stateVersion) return;
             PublishCalibratedFrame(frame);
         }
 
-        private void TryCaptureProviderPose()
+        private float GetContinuousBlend(SkeletonFrame frame)
         {
-            if (activeSkeletonProvider != null && activeSkeletonProvider.TryGetLatestPose(out var frame))
+            double time;
+            PoseClock clock;
+            if (IsPositiveFinite(frame.Metadata.SourceTimestamp))
             {
-                CachePose(frame);
+                time = frame.Metadata.SourceTimestamp;
+                clock = PoseClock.Source;
             }
+            else if (IsPositiveFinite(frame.ReceivedTime))
+            {
+                time = frame.ReceivedTime;
+                clock = PoseClock.Received;
+            }
+            else
+            {
+                time = Time.realtimeSinceStartupAsDouble;
+                clock = PoseClock.Realtime;
+            }
+
+            var sameClock = hasPoseTime && clock == lastPoseClock;
+            var elapsed = sameClock ? time - lastPoseTime : 0d;
+            lastPoseTime = time;
+            lastPoseClock = clock;
+            hasPoseTime = true;
+
+            // First poses and restarted timelines snap to their target. Applying a
+            // cached pose never reaches this method and cannot advance the filter.
+            return !smoothContinuousCalibration || !hasCalibration || !sameClock || elapsed < 0d
+                ? 1f
+                : (float)(1d - Math.Exp(-elapsed / Mathf.Max(0.001f, continuousSmoothingTime)));
         }
+
+        private static bool IsPositiveFinite(double value) => value > 0d && !double.IsInfinity(value);
 
         private void RepublishLatestSourcePose()
         {
@@ -409,37 +491,41 @@ namespace HEXLab.Hextrackingconnector
             SkeletonProviderUtility.RaisePoseReceived(PoseReceived, calibratedFrame, this);
         }
 
-        private void CachePose(SkeletonFrame frame)
+        private bool IsLastSourceFrame(SkeletonFrame frame)
         {
+            return hasSourceFrame && ReferenceEquals(lastSourceFrame.JointPoses, frame.JointPoses) &&
+                   lastSourceFrame.Metadata.Equals(frame.Metadata);
+        }
+
+        private bool CacheSourceFrame(SkeletonFrame frame)
+        {
+            var version = stateVersion;
+            if (hasSourceFrame &&
+                (!string.Equals(lastSourceFrame.Definition.Id, frame.Definition.Id, StringComparison.Ordinal) ||
+                 !string.Equals(lastSourceFrame.Metadata.SourceId, frame.Metadata.SourceId, StringComparison.Ordinal) ||
+                 lastSourceFrame.CoordinateSpace != frame.CoordinateSpace))
+            {
+                ClearSourceState();
+            }
+
+            if (version != stateVersion) return false;
             lastSourceFrame = frame;
             hasSourceFrame = true;
-            CachePose(frame.Definition, frame.CopyPositions(), frame.CopyTracked());
+            return true;
         }
 
-        private void CachePose(SkeletonDefinition definition, Vector3[] positions, bool[] tracked)
+        private void ClearSourceState()
         {
-            EnsurePoseCache(definition);
-            for (int i = 0; i < definition.JointCount; i++)
-            {
-                lastPositions[i] = positions[i];
-                lastTracked[i] = tracked[i];
-            }
-
-            lastDefinition = definition;
-            hasPose = true;
-        }
-
-        private void EnsurePoseCache(SkeletonDefinition definition)
-        {
-            if (lastPositions == null || lastPositions.Length != definition.JointCount)
-            {
-                lastPositions = new Vector3[definition.JointCount];
-            }
-
-            if (lastTracked == null || lastTracked.Length != definition.JointCount)
-            {
-                lastTracked = new bool[definition.JointCount];
-            }
+            var changed = hasCalibration || calibrationOffset != Vector3.zero;
+            calibrationOffset = Vector3.zero;
+            hasCalibration = false;
+            initialCalibrationComplete = false;
+            hasPoseTime = false;
+            lastSourceFrame = default;
+            hasSourceFrame = false;
+            latestPose = default;
+            hasLatestPose = false;
+            if (changed) CalibrationChanged?.Invoke();
         }
 
         private static bool HasValidPoseArrays(

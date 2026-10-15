@@ -94,6 +94,43 @@ namespace HEXLab.Hextrackingconnector.Editor.Tests
         }
 
         [UnityTest]
+        public IEnumerator CalibrationControlsFollowTheirEnabledTriggers()
+        {
+            using (var fixture = new InspectorFixture())
+            {
+                var calibration = fixture.CreateComponent(typeof(BodyCalibration));
+                var editor = UnityEditor.Editor.CreateEditor(calibration);
+                try
+                {
+                    var inspector = editor.CreateInspectorGUI();
+                    fixture.Content.Add(inspector);
+                    inspector.Bind(editor.serializedObject);
+                    PropertyField Field(string path) => inspector.Query<PropertyField>().ToList()
+                        .Single(field => field.bindingPath == path);
+                    yield return WaitFor(() => Field("calibrateOnFirstPose").Q<Toggle>() != null,
+                        "Calibration controls were not bound.");
+                    Field("calibrateOnFirstPose").Q<Toggle>().value = false;
+                    yield return WaitFor(() => Field("initialCalibrationMode").resolvedStyle.display == DisplayStyle.None,
+                        "Disabling initial calibration must hide its mode selector.");
+                    Field("continuousCalibration").Q<Toggle>().value = false;
+                    yield return WaitFor(() => Field("continuousCalibrationMode").resolvedStyle.display == DisplayStyle.None,
+                        "Disabling continuous calibration must hide its mode selector.");
+                    Assert.AreEqual(DisplayStyle.None, Field("smoothContinuousCalibration").resolvedStyle.display);
+                    Assert.AreEqual(DisplayStyle.None, Field("continuousSmoothingTime").resolvedStyle.display);
+                    Assert.AreNotEqual(DisplayStyle.None, Field("groundHeight").resolvedStyle.display,
+                        "Ground Height is also used by manual calibration.");
+                    Field("calibrateOnFirstPose").Q<Toggle>().value = true;
+                    yield return WaitFor(() => Field("initialCalibrationMode").resolvedStyle.display != DisplayStyle.None,
+                        "Re-enabling initial calibration must restore its mode selector.");
+                }
+                finally
+                {
+                    UnityEngine.Object.DestroyImmediate(editor);
+                }
+            }
+        }
+
+        [UnityTest]
         public IEnumerator PackageCustomInspectorsDisplayProviderFlow()
         {
             using (var fixture = new InspectorFixture())

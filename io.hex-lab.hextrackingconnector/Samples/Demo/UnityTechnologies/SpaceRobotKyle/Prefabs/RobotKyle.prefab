@@ -1285,8 +1285,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
   skeletonProvider: {fileID: 0}
   publishCalibratedPose: 1
-  autoCalibrate: 1
-  calibrationMode: 1
+  calibrateOnFirstPose: 1
+  initialCalibrationMode: 1
   calibrationOffset: {x: 0, y: 0, z: 0}
   groundHeight: 0
 --- !u!114 &7777145403974778002

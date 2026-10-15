@@ -144,6 +144,19 @@ CommServer -> SkeletonSmoothing -> SkeletonConverter if needed -> BodyCalibratio
 
 Smooth before calibration so the calibration block sees stable data. Convert before calibration when the consumer needs a target skeleton such as `UnityHumanoidControl`; calibrating after conversion keeps the final consumer space easy to reason about.
 
+## Calibration
+
+`BodyCalibration` has separate modes for **Calibrate on First Valid Pose** and **Continuous Calibration**. Their mode selectors are visible when the corresponding option is enabled. A typical setup uses `CenterHipsGroundFeet` initially and `GroundFeet` continuously: the person is centered once and can then move horizontally while their feet remain grounded.
+
+| Mode | Changes to the shared calibration offset |
+|---|---|
+| `None` | Clears X, Y, and Z to zero. |
+| `CenterHips` | Updates X, Y, and Z to place the hip center at the origin. |
+| `CenterHipsGroundFeet` | Centers X/Z on the hips and sets Y from the lowest tracked foot and Ground Height. |
+| `GroundFeet` | Updates Y from the lowest tracked foot and Ground Height, preserving X/Z. |
+
+Grounding uses tracked foot landmarks or humanoid foot/toe joints. If those are unavailable, it falls back to the lowest tracked joint. It does not inspect the avatar mesh.
+
 ## Recording And Playback
 
 Use `SkeletonPoseRecorder` to write pose streams without adding storage logic to `CommServer`.

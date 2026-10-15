@@ -71,10 +71,14 @@ MonoBehaviour:
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.BodyCalibration
   skeletonProvider: {fileID: 2110557634481904032}
   publishCalibratedPose: 1
-  autoCalibrate: 1
-  calibrationMode: 2
-  calibrationOffset: {x: 0, y: 0, z: 0}
+  calibrateOnFirstPose: 1
+  initialCalibrationMode: 2
+  continuousCalibration: 1
+  continuousCalibrationMode: 3
+  smoothContinuousCalibration: 0
+  continuousSmoothingTime: 0.1
   groundHeight: 0
+  calibrationOffset: {x: 0, y: 0.05, z: 0}
 --- !u!114 &2110557634481904032
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -1059,7 +1059,7 @@ namespace HEXLab.Hextrackingconnector.Tests
         {
             Assert.IsTrue(typeof(MonoBehaviour).IsAssignableFrom(typeof(BodyCalibration)));
             Assert.IsTrue(typeof(ISkeletonProvider).IsAssignableFrom(typeof(BodyCalibration)));
-            Assert.IsNotNull(typeof(BodyCalibration).GetMethod(nameof(BodyCalibration.Calibrate), System.Type.EmptyTypes));
+            Assert.IsNotNull(typeof(BodyCalibration).GetMethod(nameof(BodyCalibration.Calibrate), new[] { typeof(BodyCalibrationMode) }));
         }
 
         [Test]
@@ -1070,8 +1070,8 @@ namespace HEXLab.Hextrackingconnector.Tests
             var source = gameObject.AddComponent<TestSkeletonProvider>();
             var calibration = gameObject.AddComponent<BodyCalibration>();
             SetPrivateField(calibration, "skeletonProvider", source);
-            SetPrivateField(calibration, "autoCalibrate", true);
-            SetPrivateField(calibration, "calibrationMode", BodyCalibrationMode.CenterHips);
+            SetPrivateField(calibration, "calibrateOnFirstPose", true);
+            SetPrivateField(calibration, "initialCalibrationMode", BodyCalibrationMode.CenterHips);
 
             var received = default(SkeletonFrame);
             var receivedPose = false;
@@ -1108,8 +1108,8 @@ namespace HEXLab.Hextrackingconnector.Tests
             var source = gameObject.AddComponent<TestSkeletonProvider>();
             var calibration = gameObject.AddComponent<BodyCalibration>();
             SetPrivateField(calibration, "skeletonProvider", source);
-            SetPrivateField(calibration, "autoCalibrate", false);
-            SetPrivateField(calibration, "calibrationMode", BodyCalibrationMode.None);
+            SetPrivateField(calibration, "calibrateOnFirstPose", false);
+            SetPrivateField(calibration, "initialCalibrationMode", BodyCalibrationMode.None);
 
             var receivedAfterThrowingSubscriber = false;
             ((ISkeletonProvider)calibration).PoseReceived += _ => throw new InvalidOperationException("subscriber failed");
@@ -1168,8 +1168,8 @@ namespace HEXLab.Hextrackingconnector.Tests
         public void BodyCalibrationAppliesCalibrationToPoseArrays()
         {
             var calibration = (BodyCalibration)FormatterServices.GetUninitializedObject(typeof(BodyCalibration));
-            SetPrivateField(calibration, "autoCalibrate", true);
-            SetPrivateField(calibration, "calibrationMode", BodyCalibrationMode.CenterHips);
+            SetPrivateField(calibration, "calibrateOnFirstPose", true);
+            SetPrivateField(calibration, "initialCalibrationMode", BodyCalibrationMode.CenterHips);
 
             var positions = new Vector3[HumanPoseSkeleton33.JointCount];
             var tracked = new bool[HumanPoseSkeleton33.JointCount];
@@ -1179,6 +1179,7 @@ namespace HEXLab.Hextrackingconnector.Tests
             tracked[HumanPoseIndex(BodyJoints.LeftHip)] = true;
             tracked[HumanPoseIndex(BodyJoints.RightHip)] = true;
 
+            Assert.IsTrue(calibration.Calibrate(positions, tracked, BodyCalibrationMode.CenterHips));
             calibration.Apply(positions, tracked, calibrated);
 
             Assert.AreEqual(Vector3.zero, calibrated[HumanPoseIndex(BodyJoints.LeftHip)] + calibrated[HumanPoseIndex(BodyJoints.RightHip)]);

@@ -738,7 +738,7 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 2179791825877042448, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: activeSource
-      value: 2
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 2179791825877042448, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: tertiaryProvider
@@ -804,7 +804,8 @@ PrefabInstance:
       propertyPath: movingAverageWindowSize
       value: 3
       objectReference: {fileID: 0}
-    m_RemovedComponents: []
+    m_RemovedComponents:
+    - {fileID: 4885793963205802255, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
     m_RemovedGameObjects: []
     m_AddedGameObjects:
     - targetCorrespondingSourceObject: {fileID: 4461321283696998781, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}

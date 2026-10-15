@@ -281,7 +281,7 @@ PrefabInstance:
       value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1605369236002066486, guid: 7ae956b4f54394e80818898d8f4d30c6, type: 3}
-      propertyPath: calibrationMode
+      propertyPath: initialCalibrationMode
       value: 2
       objectReference: {fileID: 0}
     - target: {fileID: 1605369236002066486, guid: 7ae956b4f54394e80818898d8f4d30c6, type: 3}
