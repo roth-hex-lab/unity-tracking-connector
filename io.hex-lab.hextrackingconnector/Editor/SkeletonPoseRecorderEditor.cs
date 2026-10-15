@@ -1,5 +1,7 @@
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace HEXLab.Hextrackingconnector.Editor
 {
@@ -31,52 +33,54 @@ namespace HEXLab.Hextrackingconnector.Editor
             stopOnDefinitionChange = serializedObject.FindProperty("stopOnDefinitionChange");
         }
 
-        public override void OnInspectorGUI()
+        public override VisualElement CreateInspectorGUI()
         {
-            serializedObject.Update();
+            var root = new VisualElement();
+            root.Add(new Label("Source") { style = { unityFontStyleAndWeight = FontStyle.Bold } });
+            root.Add(new PropertyField(source));
+            root.Add(new PropertyField(sourceMode));
 
-            EditorGUILayout.LabelField("Source", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(source);
-            EditorGUILayout.PropertyField(sourceMode);
-
-            EditorGUILayout.Space(8f);
-            EditorGUILayout.LabelField("Recording", EditorStyles.boldLabel);
-            EditorGUILayout.PropertyField(recordingFormat);
-            DrawFolderField();
-            EditorGUILayout.PropertyField(recordOnStart);
-            EditorGUILayout.PropertyField(maxDurationSeconds, new GUIContent("Max Duration Seconds"));
-            EditorGUILayout.PropertyField(maxFrameCount);
-            EditorGUILayout.PropertyField(maxQueuedFrames);
-            EditorGUILayout.PropertyField(overflowMode);
-            EditorGUILayout.PropertyField(stopOnDefinitionChange);
-
-            serializedObject.ApplyModifiedProperties();
-
-            EditorGUILayout.Space(8f);
-            DrawRuntimeControls();
+            root.Add(new Label("Recording")
+            {
+                style = { unityFontStyleAndWeight = FontStyle.Bold, marginTop = 8f },
+            });
+            root.Add(new PropertyField(recordingFormat));
+            var folderRow = new VisualElement();
+            folderRow.style.flexDirection = FlexDirection.Row;
+            var folderField = new PropertyField(recordingFolder);
+            folderField.style.flexGrow = 1f;
+            folderRow.Add(folderField);
+            folderRow.Add(new Button(BrowseForFolder) { text = "Browse" });
+            root.Add(folderRow);
+            root.Add(new HelpBox(
+                "Each recording creates a new timestamped file in this folder. Existing recordings are not overwritten.",
+                HelpBoxMessageType.Info));
+            root.Add(new PropertyField(recordOnStart));
+            root.Add(new PropertyField(maxDurationSeconds, "Max Duration Seconds"));
+            root.Add(new PropertyField(maxFrameCount));
+            root.Add(new PropertyField(maxQueuedFrames));
+            root.Add(new PropertyField(overflowMode));
+            root.Add(new PropertyField(stopOnDefinitionChange));
+            root.Add(new IMGUIContainer(() =>
+            {
+                EditorGUILayout.Space(8f);
+                DrawRuntimeControls();
+            }));
+            return root;
         }
 
-        private void DrawFolderField()
+        private void BrowseForFolder()
         {
-            using (new EditorGUILayout.HorizontalScope())
+            var folder = EditorUtility.OpenFolderPanel(
+                "Select Pose Recording Folder",
+                Application.persistentDataPath,
+                string.Empty);
+            if (!string.IsNullOrEmpty(folder))
             {
-                EditorGUILayout.PropertyField(recordingFolder);
-                if (GUILayout.Button("Browse", GUILayout.Width(72f)))
-                {
-                    var folder = EditorUtility.OpenFolderPanel(
-                        "Select Pose Recording Folder",
-                        Application.persistentDataPath,
-                        string.Empty);
-                    if (!string.IsNullOrEmpty(folder))
-                    {
-                        recordingFolder.stringValue = folder;
-                    }
-                }
+                serializedObject.Update();
+                recordingFolder.stringValue = folder;
+                serializedObject.ApplyModifiedProperties();
             }
-
-            EditorGUILayout.HelpBox(
-                "Each recording creates a new timestamped file in this folder. Existing recordings are not overwritten.",
-                MessageType.Info);
         }
 
         private void DrawRuntimeControls()

@@ -1,15 +1,23 @@
 using UnityEditor;
+using UnityEditor.UIElements;
 using UnityEngine;
+using UnityEngine.UIElements;
 
 namespace HEXLab.Hextrackingconnector.Editor
 {
     [CustomEditor(typeof(BodyCalibration))]
     public class BodyCalibrationEditor : UnityEditor.Editor
     {
-        public override void OnInspectorGUI()
+        public override VisualElement CreateInspectorGUI()
         {
-            DrawDefaultInspector();
+            var root = new VisualElement();
+            InspectorElement.FillDefaultInspector(root, serializedObject, this);
+            root.Add(new IMGUIContainer(DrawCalibrationControls));
+            return root;
+        }
 
+        private void DrawCalibrationControls()
+        {
             EditorGUILayout.Space(8f);
 
             using (new EditorGUI.DisabledScope(!Application.isPlaying))
