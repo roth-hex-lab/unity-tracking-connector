@@ -6,23 +6,21 @@ namespace HEXLab.Hextrackingconnector
 {
     internal static class BodyDebugMaterials
     {
-        private static readonly Dictionary<string, Material> JointMaterials =
-            new Dictionary<string, Material>();
-
         private static readonly int BaseColor = Shader.PropertyToID("_BaseColor");
         private static readonly int Color1 = Shader.PropertyToID("_Color");
         private static readonly int Metallic = Shader.PropertyToID("_Metallic");
         private static readonly int Smoothness = Shader.PropertyToID("_Smoothness");
         private static readonly int Glossiness = Shader.PropertyToID("_Glossiness");
 
-        public static Material GetOrCreateJointMaterial(Color color)
+        // The caller owns this material and must destroy it with its generated visuals.
+        public static Material CreateJointMaterial(Color color)
         {
             var pipeline = GraphicsSettings.currentRenderPipeline;
             var pipelineTypeName = pipeline == null ? null : pipeline.GetType().FullName;
-            return GetOrCreateJointMaterial(color, pipelineTypeName);
+            return CreateJointMaterial(color, pipelineTypeName);
         }
 
-        private static Material GetOrCreateJointMaterial(Color color, string pipelineAssetTypeName)
+        private static Material CreateJointMaterial(Color color, string pipelineAssetTypeName)
         {
             var shader = FindFirstAvailableShader(GetCandidateShaderNames(pipelineAssetTypeName));
             if (shader == null)
@@ -30,19 +28,12 @@ namespace HEXLab.Hextrackingconnector
                 return null;
             }
 
-            var key = shader.name + ":" + ColorUtility.ToHtmlStringRGBA(color);
-            if (JointMaterials.TryGetValue(key, out var material) && material != null)
-            {
-                return material;
-            }
-
-            material = new Material(shader)
+            var material = new Material(shader)
             {
                 name = "HEX Debug Joint " + ColorUtility.ToHtmlStringRGBA(color),
                 hideFlags = HideFlags.DontSave,
             };
             ApplyColor(material, color);
-            JointMaterials[key] = material;
             return material;
         }
 

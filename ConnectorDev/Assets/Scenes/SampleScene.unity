@@ -411,6 +411,77 @@ MonoBehaviour:
   animator: {fileID: 473666980}
   applyRootPosition: 1
   positionScale: 1
+  avatarFitMode: 0
+  minAvatarFitScale: 0.25
+  maxAvatarFitScale: 4
+  avatarFitScale: 1
+  enforceFloorClamp: 1
+  floorY: 0
+--- !u!1 &566104153
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 566104155}
+  - component: {fileID: 566104154}
+  m_Layer: 0
+  m_Name: LocalLandmarkProvider
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &566104154
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 566104153}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 973badfeeb541154a85478e9c702eaff, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: HEXLab.Hextrackingconnector.MediaPipe::HEXLab.Hextrackingconnector.LocalLandmarkProvider
+  cameraName: 
+  preferFrontFacingCamera: 0
+  mirrorFrontFacingCameraInput: 1
+  requestedWidth: 640
+  requestedHeight: 480
+  requestedFps: 30
+  cameraStartupTimeoutSeconds: 10
+  maxInferenceFps: 30
+  model: 1
+  customModelAsset: {fileID: 0}
+  inferenceDelegate: 0
+  minPoseDetectionConfidence: 0.5
+  minPosePresenceConfidence: 0.5
+  minTrackingConfidence: 0.5
+  minJointConfidence: 0
+  invertWorldX: 1
+  invertWorldY: 1
+  invertWorldZ: 1
+  worldScale: 1
+  mirrorMode: 0
+  logStartupEvents: 1
+--- !u!4 &566104155
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 566104153}
+  serializedVersion: 2
+  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalPosition: {x: 1.30346, y: 0, z: -0.46037}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 1577609432}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -665,6 +736,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 2179791825877042448, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+      propertyPath: activeSource
+      value: 2
+      objectReference: {fileID: 0}
+    - target: {fileID: 2179791825877042448, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+      propertyPath: tertiaryProvider
+      value: 
+      objectReference: {fileID: 566104154}
     - target: {fileID: 2312988602424259025, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
       propertyPath: m_Name
       value: Communication
@@ -727,7 +806,10 @@ PrefabInstance:
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
-    m_AddedGameObjects: []
+    m_AddedGameObjects:
+    - targetCorrespondingSourceObject: {fileID: 4461321283696998781, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+      insertIndex: -1
+      addedObject: {fileID: 566104155}
     m_AddedComponents: []
   m_SourcePrefab: {fileID: 100100000, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
 --- !u!114 &1577609430 stripped
@@ -752,6 +834,11 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 0e496d6270a940768da6162d8e7dcae1, type: 3}
   m_Name: 
   m_EditorClassIdentifier: HEXLab.Hextrackingconnector::HEXLab.Hextrackingconnector.SkeletonSmoothing
+--- !u!4 &1577609432 stripped
+Transform:
+  m_CorrespondingSourceObject: {fileID: 4461321283696998781, guid: 3ec4f71f47bcc6e41aca8f72dc2a56b3, type: 3}
+  m_PrefabInstance: {fileID: 1577609429}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1592051867
 PrefabInstance:
   m_ObjectHideFlags: 0

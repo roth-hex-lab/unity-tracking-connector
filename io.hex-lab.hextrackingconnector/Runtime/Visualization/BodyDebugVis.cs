@@ -33,6 +33,7 @@ namespace HEXLab.Hextrackingconnector
 
         private ISkeletonProvider activeSkeletonProvider;
         private GameObject headInstance;
+        private Material generatedJointMaterial;
         private bool visualsCreated;
 
         public Vector3 VirtualHeadPosition { get; private set; }
@@ -47,6 +48,7 @@ namespace HEXLab.Hextrackingconnector
         private void OnDisable()
         {
             Unsubscribe();
+            DestroyVisuals();
         }
 
         private void OnDestroy()
@@ -99,6 +101,12 @@ namespace HEXLab.Hextrackingconnector
 
         private void OnPoseReceived(SkeletonFrame frame)
         {
+            // A provider may already have copied its invocation list when we unsubscribe.
+            if (this == null || !isActiveAndEnabled)
+            {
+                return;
+            }
+
             EnsureVisuals(frame.Definition);
 
             if (!visualsCreated)
@@ -182,7 +190,7 @@ namespace HEXLab.Hextrackingconnector
             EnsurePoseBuffers(definition);
 
             var targetParent = parent == null ? transform : parent;
-            var generatedJointMaterial = BodyDebugMaterials.GetOrCreateJointMaterial(jointColor);
+            generatedJointMaterial = BodyDebugMaterials.CreateJointMaterial(jointColor);
 
             jointInstances = new GameObject[definition.JointCount];
             for (int i = 0; i < jointInstances.Length; i++)
@@ -281,7 +289,9 @@ namespace HEXLab.Hextrackingconnector
             }
 
             DestroyIfPresent(headInstance);
+            DestroyIfPresent(generatedJointMaterial);
             headInstance = null;
+            generatedJointMaterial = null;
             jointInstances = new GameObject[0];
             lines = new LineRenderer[0];
             visualsCreated = false;
