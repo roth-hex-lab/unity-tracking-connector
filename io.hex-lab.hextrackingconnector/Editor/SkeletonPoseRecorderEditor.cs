@@ -92,6 +92,7 @@ namespace HEXLab.Hextrackingconnector.Editor
             using (new EditorGUI.DisabledScope(true))
             {
                 EditorGUILayout.Toggle("Recording", recorder.IsRecording);
+                EditorGUILayout.Toggle("Finishing", recorder.IsStopping);
                 EditorGUILayout.DoubleField("Duration", recorder.RecordingDuration);
                 EditorGUILayout.IntField("Frames Written", recorder.WrittenFrameCount);
                 EditorGUILayout.IntField("Queued Frames", recorder.QueuedFrameCount);
@@ -102,7 +103,7 @@ namespace HEXLab.Hextrackingconnector.Editor
 
             using (new EditorGUILayout.HorizontalScope())
             {
-                using (new EditorGUI.DisabledScope(recorder.IsRecording))
+                using (new EditorGUI.DisabledScope(recorder.IsRecording || recorder.IsStopping))
                 {
                     if (GUILayout.Button("Start Recording"))
                     {

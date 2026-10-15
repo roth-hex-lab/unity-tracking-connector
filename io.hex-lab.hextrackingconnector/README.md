@@ -163,6 +163,8 @@ Supported recording formats:
 
 Each frame stores a recording-relative timestamp, original frame metadata, coordinate space, joint channels, positions, rotations, confidence, provenance, and source labels. Playback defaults to recorded timing, but can also use source timestamps, received timestamps, or a fixed frame rate.
 
+Stopping a recording closes frame admission and finishes writing the accepted frames. If writing takes longer than the synchronous stop wait, `IsRecording` becomes false and `IsStopping` stays true until finalization completes. The session releases its resources and reports failures even if the recorder is disabled or destroyed. Once it finishes, `StartRecording()` can start a new session without requiring an intervening `Update`. Callbacks already dispatched by an older recording cannot feed the new file.
+
 Example recordings should be shipped as Package Manager samples. After importing
 them into a project, select the desired `.hexpose` or `.jsonl` file with the
 regular `SkeletonPosePlayback` recording picker.
@@ -274,4 +276,6 @@ When `CommServer.InputSkeleton` is `Auto`, incoming `skeleton_id` values are res
 
 ## Verification Notes
 
-`CommServer` publishes at most one pose event per Unity frame. If several transport packets arrive before `Update`, the latest pending pose is published. Smoothing should be handled by `SkeletonSmoothing`, not by `CommServer`.
+`CommServer` publishes at most one pose event per Unity frame. If several transport packets arrive before `Update`, one pending slot retains only the latest pose, so pausing Unity does not accumulate a frame queue. Capture subscribers still receive every decoded frame before it becomes available for provider publication. Smoothing should be handled by `SkeletonSmoothing`, not by `CommServer`.
+
+Enabling `CommServer` starts a transport session; disabling it cancels pipe connection/read operations or closes UDP reception. Re-enabling starts a fresh session after the previous one completes, without publishing its old poses. A transport that exceeds the stop wait retains ownership of its resources until completion and prevents an overlapping restart.

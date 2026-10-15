@@ -1,11 +1,4 @@
 using System;
-using System.Collections.Concurrent;
-using System.Globalization;
-using System.IO;
-using System.IO.Pipes;
-using System.Net;
-using System.Net.Sockets;
-using System.Text;
 using System.Threading;
 using UnityEngine;
 
@@ -20,7 +13,6 @@ namespace HEXLab.Hextrackingconnector
     [SkeletonPipelineNode("CommServer")]
     public class CommServer : MonoBehaviour, ISkeletonProvider, ISkeletonCaptureSource
     {
-        private const int MaxPayloadBytes = 1024 * 1024;
         private const string DefaultPipeName = "UnityMediaPipeBody";
 
         [SerializeField] private TransportMode transportMode = TransportMode.Pipe;
@@ -31,14 +23,11 @@ namespace HEXLab.Hextrackingconnector
         [SerializeField] private PoseMirrorMode mirrorMode = PoseMirrorMode.None;
         [SerializeField] private bool logConnectionEvents = true;
 
-        private readonly ConcurrentQueue<SkeletonFrame> pendingFrames = new ConcurrentQueue<SkeletonFrame>();
-        private readonly object transportLock = new object();
         private readonly object capturedPoseLock = new object();
-
-        private Thread transportThread;
-        private NamedPipeServerStream pipeServer;
-        private UdpClient udpServer;
-        private volatile bool isRunning;
+        private volatile TransportSession transportSession;
+        private bool transportRequested;
+        private SkeletonFrame pendingFrame;
+        private bool hasPendingFrame;
         private int sequenceNumber;
 
         private SkeletonFrame latestPose;
@@ -50,6 +39,7 @@ namespace HEXLab.Hextrackingconnector
         public event Action<SkeletonFrame> FrameCaptured;
 
         public TransportMode CurrentTransportMode => transportMode;
+        internal TransportSession Session => transportSession;
 
         public InputSkeletonSelection InputSkeleton
         {
@@ -69,8 +59,18 @@ namespace HEXLab.Hextrackingconnector
             set => mirrorMode = value;
         }
 
-        public bool IsRunning => isRunning;
-        public int PendingFrameCount => pendingFrames.Count;
+        public bool IsRunning
+        {
+            get
+            {
+                var session = transportSession;
+                return session != null && !session.IsStopping && !session.Completion.IsCompleted;
+            }
+        }
+        public int PendingFrameCount
+        {
+            get { lock (capturedPoseLock) return hasPendingFrame ? 1 : 0; }
+        }
 
         public bool TryGetLatestPose(out SkeletonFrame pose)
         {
@@ -87,19 +87,29 @@ namespace HEXLab.Hextrackingconnector
             }
         }
 
-        private void Start()
+        private void OnEnable()
         {
-            CultureInfo.DefaultThreadCurrentCulture = CultureInfo.InvariantCulture;
+            if (!Application.isPlaying) return;
+            transportRequested = true;
             StartTransport();
         }
 
         private void Update()
         {
+            if (transportRequested && (transportSession == null || transportSession.Completion.IsCompleted))
+                StartTransport();
             PublishPendingFrames();
         }
 
         private void OnDisable()
         {
+            transportRequested = false;
+            StopTransport();
+        }
+
+        private void OnDestroy()
+        {
+            transportRequested = false;
             StopTransport();
         }
 
@@ -115,240 +125,85 @@ namespace HEXLab.Hextrackingconnector
 
         private void StartTransport()
         {
-            if (isRunning)
-            {
-                return;
-            }
-
-            DrainPendingFrames();
-            isRunning = true;
-            transportThread = new Thread(RunTransportLoop)
-            {
-                IsBackground = true,
-                Name = "HEX Tracking Connector Transport",
-            };
-            transportThread.Start();
+            if (transportSession != null && !transportSession.Completion.IsCompleted) return;
+            ClearFrames();
+            var session = new TransportSession(transportMode, pipeName, udpPort,
+                OnSessionPayload, LogConnection,
+                exception => Debug.LogWarning($"HEX tracking transport error: {exception.Message}"));
+            transportSession = session;
+            session.Start();
         }
 
         private void StopTransport()
         {
-            if (!isRunning)
+            var session = transportSession;
+            if (session == null) return;
+            session.RequestStop();
+            ClearFrames();
+            if (session.Completion.Wait(1000))
             {
-                return;
+                transportSession = null;
             }
-
-            isRunning = false;
-            CloseActiveTransport();
-
-            if (transportThread != null && transportThread.IsAlive)
+            else
             {
-                transportThread.Join(250);
+                Debug.LogWarning("HEX tracking transport is still stopping; restart will wait for completion.", this);
             }
-
-            transportThread = null;
         }
 
-        private void DrainPendingFrames()
+        private void ClearFrames()
         {
-            while (pendingFrames.TryDequeue(out _))
+            lock (capturedPoseLock)
             {
+                pendingFrame = default;
+                hasPendingFrame = false;
+                latestCapturedPose = default;
+                hasLatestCapturedPose = false;
             }
+            latestPose = default;
+            hasLatestPose = false;
         }
 
         private void PublishPendingFrames()
         {
-            var hasPoseToPublish = false;
-            var poseToPublish = default(SkeletonFrame);
-
-            while (pendingFrames.TryDequeue(out var rawPose))
+            SkeletonFrame frame;
+            lock (capturedPoseLock)
             {
-                poseToPublish = rawPose;
-                hasPoseToPublish = true;
+                if (!hasPendingFrame) return;
+                frame = pendingFrame;
+                pendingFrame = default;
+                hasPendingFrame = false;
             }
-
-            if (!hasPoseToPublish)
-            {
-                return;
-            }
-
-            latestPose = poseToPublish;
+            latestPose = frame;
             hasLatestPose = true;
-            RaisePoseReceived(poseToPublish);
+            SkeletonProviderUtility.RaisePoseReceived(PoseReceived, frame, this);
         }
 
-        private void RaisePoseReceived(SkeletonFrame pose)
+        private void OnSessionPayload(TransportSession session, string json)
         {
-            SkeletonProviderUtility.RaisePoseReceived(PoseReceived, pose, this);
-        }
-
-        private void RunTransportLoop()
-        {
-            Thread.CurrentThread.CurrentCulture = CultureInfo.InvariantCulture;
-
-            while (isRunning)
-            {
-                try
-                {
-                    if (transportMode == TransportMode.Pipe)
-                    {
-                        RunPipeLoop();
-                    }
-                    else
-                    {
-                        RunUdpLoop();
-                    }
-                }
-                catch (ObjectDisposedException) when (!isRunning)
-                {
-                }
-                catch (SocketException) when (!isRunning)
-                {
-                }
-                catch (IOException) when (!isRunning)
-                {
-                }
-                catch (Exception exception)
-                {
-                    if (isRunning)
-                    {
-                        Debug.LogWarning($"HEX tracking transport error: {exception.Message}");
-                    }
-                }
-
-                if (isRunning)
-                {
-                    LogConnection("Client disconnected. Waiting for reconnection...");
-                    Thread.Sleep(100);
-                }
-            }
-        }
-
-        private void RunPipeLoop()
-        {
-            using (var server = new NamedPipeServerStream(
-                       pipeName,
-                       PipeDirection.InOut,
-                       1,
-                       PipeTransmissionMode.Message,
-                       PipeOptions.Asynchronous))
-            {
-                lock (transportLock)
-                {
-                    if (!isRunning) return;
-                    pipeServer = server;
-                }
-
-                LogConnection($"Waiting for pipe connection on '{pipeName}'...");
-                // Begin waiting asynchronously
-                var asyncResult = server.BeginWaitForConnection(null, null);
-
-                // Wait 100ms at a time. If Unity stops play mode, isRunning becomes false, and we break out instantly.
-                while (isRunning && !asyncResult.AsyncWaitHandle.WaitOne(100))
-                {
-                }
-
-                // If we broke out because Unity is shutting down, exit the thread cleanly right now.
-                if (!isRunning)
-                {
-                    return;
-                }
-
-                // Otherwise, the connection succeeded. Finalize it.
-                try
-                {
-                    server.EndWaitForConnection(asyncResult);
-                }
-                catch (Exception)
-                {
-                    return;
-                }
-
-                LogConnection("Connected via named pipe.");
-
-                using (var reader = new BinaryReader(server, Encoding.UTF8))
-                {
-                    while (isRunning && server.IsConnected)
-                    {
-                        var payloadLength = checked((int)reader.ReadUInt32());
-                        if (payloadLength <= 0 || payloadLength > MaxPayloadBytes)
-                        {
-                            throw new InvalidDataException($"Invalid pose payload length: {payloadLength}.");
-                        }
-
-                        var payload = reader.ReadBytes(payloadLength);
-                        if (payload.Length != payloadLength)
-                        {
-                            break;
-                        }
-
-                        ParseAndEnqueue(Encoding.UTF8.GetString(payload));
-                    }
-                }
-            }
-
-            lock (transportLock)
-            {
-                pipeServer = null;
-            }
-        }
-
-        private void RunUdpLoop()
-        {
-            using (var server = new UdpClient(udpPort))
-            {
-                lock (transportLock)
-                {
-                    udpServer = server;
-                }
-
-                var remote = new IPEndPoint(IPAddress.Any, 0);
-                LogConnection($"Waiting for Python UDP packets on port {udpPort}...");
-
-                while (isRunning)
-                {
-                    var datagram = server.Receive(ref remote);
-                    if (datagram.Length < sizeof(int))
-                    {
-                        continue;
-                    }
-
-                    var payloadLength = BitConverter.ToInt32(datagram, 0);
-                    if (payloadLength <= 0 ||
-                        payloadLength > MaxPayloadBytes ||
-                        datagram.Length < sizeof(int) + payloadLength)
-                    {
-                        Debug.LogWarning($"Skipping invalid UDP pose packet from {remote}.");
-                        continue;
-                    }
-
-                    ParseAndEnqueue(Encoding.UTF8.GetString(datagram, sizeof(int), payloadLength));
-                }
-            }
-
-            lock (transportLock)
-            {
-                udpServer = null;
-            }
+            if (!ReferenceEquals(transportSession, session) || session.IsStopping) return;
+            if (TryParseSkeletonFrame(json, out var frame)) StoreFrame(frame, session);
         }
 
         private void ParseAndEnqueue(string json)
         {
-            if (TryParseSkeletonFrame(json, out var frame))
-            {
-                CaptureFrame(frame);
-                pendingFrames.Enqueue(frame);
-            }
+            if (TryParseSkeletonFrame(json, out var frame)) StoreFrame(frame);
         }
 
-        private void CaptureFrame(SkeletonFrame frame)
+        private void StoreFrame(SkeletonFrame frame, TransportSession owner = null)
         {
             lock (capturedPoseLock)
             {
+                if (owner != null && (!ReferenceEquals(transportSession, owner) || owner.IsStopping)) return;
                 latestCapturedPose = frame;
                 hasLatestCapturedPose = true;
             }
-
             RaiseFrameCaptured(frame);
+            lock (capturedPoseLock)
+            {
+                if (owner != null && (!ReferenceEquals(transportSession, owner) || owner.IsStopping)) return;
+                pendingFrame = frame;
+                hasPendingFrame = true;
+            }
         }
 
         private void RaiseFrameCaptured(SkeletonFrame frame)
@@ -449,31 +304,6 @@ namespace HEXLab.Hextrackingconnector
                 pose,
                 metadata);
             return true;
-        }
-
-        private void CloseActiveTransport()
-        {
-            lock (transportLock)
-            {
-                try
-                {
-                    pipeServer?.Dispose();
-                }
-                catch (Exception)
-                {
-                }
-
-                try
-                {
-                    udpServer?.Close();
-                }
-                catch (Exception)
-                {
-                }
-
-                pipeServer = null;
-                udpServer = null;
-            }
         }
 
         private void LogConnection(string message)

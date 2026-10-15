@@ -14,15 +14,20 @@ namespace HEXLab.Hextrackingconnector
         private bool disposed;
 
         public BinarySkeletonRecordingWriter(string path, SkeletonDefinition definition)
+            : this(new FileStream(path, FileMode.CreateNew, FileAccess.Write,
+                FileShare.ReadWrite | FileShare.Delete), definition)
         {
-            writer = new BinaryWriter(
-                new FileStream(
-                    path,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.ReadWrite | FileShare.Delete),
-                Encoding.UTF8);
-            WriteHeader(definition);
+        }
+
+        internal BinarySkeletonRecordingWriter(Stream stream, SkeletonDefinition definition)
+        {
+            writer = new BinaryWriter(stream, Encoding.UTF8);
+            try { WriteHeader(definition); }
+            catch (Exception exception)
+            {
+                SkeletonRecordingWriterCleanup.DisposeAfterFailure(exception, writer);
+                throw;
+            }
         }
 
         public int FrameCount { get; private set; }
@@ -57,11 +62,13 @@ namespace HEXLab.Hextrackingconnector
                 return;
             }
 
-            writer.Write(FooterRecord);
-            writer.Write(FrameCount);
-            writer.Write(Duration);
-            writer.Dispose();
             disposed = true;
+            SkeletonRecordingWriterCleanup.CompleteAndDispose(() =>
+            {
+                writer.Write(FooterRecord);
+                writer.Write(FrameCount);
+                writer.Write(Duration);
+            }, writer);
         }
 
         private void WriteHeader(SkeletonDefinition definition)

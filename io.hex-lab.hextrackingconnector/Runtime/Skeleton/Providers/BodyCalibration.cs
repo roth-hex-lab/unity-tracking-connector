@@ -71,16 +71,19 @@ namespace HEXLab.Hextrackingconnector
             Unsubscribe();
         }
 
-        // Assigns the skeleton source at runtime, before this component is enabled
-        // (e.g. right after Instantiate, while the GameObject is still inactive).
-        // OnEnable resolves/subscribes from this field, so it must be set beforehand.
+        // Inactive components store the source for OnEnable; active components reconnect immediately.
         public void SetSkeletonProvider(MonoBehaviour provider)
         {
+            if (ReferenceEquals(skeletonProvider, provider)) return;
+            Unsubscribe();
             skeletonProvider = provider;
+            if (isActiveAndEnabled) SetupProviderCapture();
         }
 
         public void SetupProviderCapture()
         {
+            Unsubscribe();
+            if (!isActiveAndEnabled) return;
             ResolveSkeletonProvider();
             Subscribe();
             TryCaptureProviderPose();

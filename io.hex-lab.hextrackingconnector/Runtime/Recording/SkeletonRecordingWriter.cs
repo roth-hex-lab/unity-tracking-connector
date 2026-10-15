@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Runtime.ExceptionServices;
 
 namespace HEXLab.Hextrackingconnector
 {
@@ -36,6 +37,28 @@ namespace HEXLab.Hextrackingconnector
                 default:
                     return new JsonLinesSkeletonRecordingWriter(path, definition);
             }
+        }
+    }
+
+    internal static class SkeletonRecordingWriterCleanup
+    {
+        internal static void DisposeAfterFailure(Exception failure, IDisposable resource)
+        {
+            CompleteAndDispose(() => ExceptionDispatchInfo.Capture(failure).Throw(), resource);
+        }
+
+        internal static void CompleteAndDispose(Action complete, IDisposable resource)
+        {
+            Exception failure = null;
+            try { complete(); }
+            catch (Exception exception) { failure = exception; }
+            try { resource.Dispose(); }
+            catch (Exception exception)
+            {
+                if (failure == null) throw;
+                throw new AggregateException(failure, exception);
+            }
+            if (failure != null) ExceptionDispatchInfo.Capture(failure).Throw();
         }
     }
 }

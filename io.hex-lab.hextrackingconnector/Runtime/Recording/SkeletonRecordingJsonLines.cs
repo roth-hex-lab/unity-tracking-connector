@@ -11,25 +11,33 @@ namespace HEXLab.Hextrackingconnector
         private bool disposed;
 
         public JsonLinesSkeletonRecordingWriter(string path, SkeletonDefinition definition)
+            : this(new FileStream(path, FileMode.CreateNew, FileAccess.Write,
+                FileShare.ReadWrite | FileShare.Delete), definition)
         {
-            writer = new StreamWriter(
-                new FileStream(
-                    path,
-                    FileMode.CreateNew,
-                    FileAccess.Write,
-                    FileShare.ReadWrite | FileShare.Delete),
-                Encoding.UTF8);
-            WriteLine(new SkeletonRecordingLineDto
+        }
+
+        internal JsonLinesSkeletonRecordingWriter(Stream stream, SkeletonDefinition definition)
+        {
+            writer = new StreamWriter(stream, Encoding.UTF8);
+            try
             {
-                type = "header",
-                header = new SkeletonRecordingHeaderDto
+                WriteLine(new SkeletonRecordingLineDto
                 {
-                    format = SkeletonRecordingDtoMapper.JsonLinesFormatName,
-                    version = SkeletonRecordingDtoMapper.Version,
-                    createdUtc = DateTimeOffset.UtcNow.ToString("O"),
-                    definition = SkeletonRecordingDtoMapper.ToDefinitionDto(definition),
-                },
-            });
+                    type = "header",
+                    header = new SkeletonRecordingHeaderDto
+                    {
+                        format = SkeletonRecordingDtoMapper.JsonLinesFormatName,
+                        version = SkeletonRecordingDtoMapper.Version,
+                        createdUtc = DateTimeOffset.UtcNow.ToString("O"),
+                        definition = SkeletonRecordingDtoMapper.ToDefinitionDto(definition),
+                    },
+                });
+            }
+            catch (Exception exception)
+            {
+                SkeletonRecordingWriterCleanup.DisposeAfterFailure(exception, writer);
+                throw;
+            }
         }
 
         public int FrameCount { get; private set; }
@@ -54,7 +62,8 @@ namespace HEXLab.Hextrackingconnector
                 return;
             }
 
-            WriteLine(new SkeletonRecordingLineDto
+            disposed = true;
+            SkeletonRecordingWriterCleanup.CompleteAndDispose(() => WriteLine(new SkeletonRecordingLineDto
             {
                 type = "footer",
                 footer = new SkeletonRecordingFooterDto
@@ -62,9 +71,7 @@ namespace HEXLab.Hextrackingconnector
                     frameCount = FrameCount,
                     duration = Duration,
                 },
-            });
-            writer.Dispose();
-            disposed = true;
+            }), writer);
         }
 
         private void WriteLine(SkeletonRecordingLineDto line)
